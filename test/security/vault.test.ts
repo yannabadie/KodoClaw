@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Vault } from "../../src/security/vault";
@@ -61,5 +61,23 @@ describe("Vault", () => {
 		if (process.platform !== "win32") {
 			expect(st.mode & 0o777).toBe(0o600);
 		}
+	});
+
+	test("throws on corrupt vault JSON", async () => {
+		const vaultPath = join(dir, "vault.enc");
+		await writeFile(vaultPath, "{not valid json!!!", "utf-8");
+		await expect(vault.set("key", "value")).rejects.toThrow("corrupted");
+	});
+
+	test("handles missing vault file gracefully", async () => {
+		const vaultPath = join(dir, "vault.enc");
+		// Ensure no vault file exists (delete if created by prior operations)
+		try {
+			await unlink(vaultPath);
+		} catch {
+			// Already absent — fine
+		}
+		const names = await vault.list();
+		expect(names).toEqual([]);
 	});
 });

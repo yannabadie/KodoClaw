@@ -83,11 +83,19 @@ export class Vault {
 
 	private async loadStore(): Promise<Record<string, string>> {
 		const path = join(this.dir, VAULT_FILE);
+		let text: string;
 		try {
-			const text = await readFile(path, "utf-8");
+			text = await readFile(path, "utf-8");
+		} catch (err: unknown) {
+			if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT") {
+				return {};
+			}
+			throw err;
+		}
+		try {
 			return JSON.parse(text);
 		} catch {
-			return {};
+			throw new Error(`Vault store corrupted: ${path}`);
 		}
 	}
 
