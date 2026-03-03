@@ -46,10 +46,10 @@ describe("shouldConfirm", () => {
     expect(shouldConfirm("trusted", "high")).toBe("allow");
     expect(shouldConfirm("trusted", "critical")).toBe("confirm");
   });
-  test("autonomous confirms only critical", () => {
+  test("autonomous mode blocks critical commands", () => {
     expect(shouldConfirm("autonomous", "low")).toBe("allow");
     expect(shouldConfirm("autonomous", "medium")).toBe("allow");
     expect(shouldConfirm("autonomous", "high")).toBe("allow");
-    expect(shouldConfirm("autonomous", "critical")).toBe("confirm");
+    expect(shouldConfirm("autonomous", "critical")).toBe("block");
   });
 });

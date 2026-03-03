@@ -51,4 +51,13 @@ describe("UI auth", () => {
     sessionChars[sessionChars.length - 1] = lastSessionChar === "a" ? "b" : "a";
     expect(verifySessionToken(sessionChars.join(""), secret)).toBe(false);
   });
+
+  test("rejects non-hex signature gracefully", () => {
+    const token = generatePairingToken(secret);
+    const parts = token.split(":");
+    // Replace the hex signature with non-hex characters
+    const nonHexSig = "g".repeat(parts[2]!.length);
+    const badToken = `${parts[0]}:${parts[1]}:${nonHexSig}`;
+    expect(verifyPairingToken(badToken, secret, 300_000)).toBe(false);
+  });
 });

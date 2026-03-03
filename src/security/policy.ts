@@ -27,7 +27,7 @@ const POLICY_MATRIX: Record<AutonomyLevel, Record<RiskLevel, PolicyDecision>> = 
   guarded: { low: "allow", medium: "block", high: "block", critical: "block" },
   supervised: { low: "allow", medium: "allow", high: "confirm", critical: "block" },
   trusted: { low: "allow", medium: "allow", high: "allow", critical: "confirm" },
-  autonomous: { low: "allow", medium: "allow", high: "allow", critical: "confirm" },
+  autonomous: { low: "allow", medium: "allow", high: "allow", critical: "block" },
 };
 
 export function shouldConfirm(autonomy: AutonomyLevel, risk: RiskLevel): PolicyDecision {

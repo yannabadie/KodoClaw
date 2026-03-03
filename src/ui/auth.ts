@@ -7,6 +7,7 @@ function hmacSign(data: string, secret: string): string {
 
 function hmacEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
+  if (!/^[0-9a-f]+$/i.test(a) || !/^[0-9a-f]+$/i.test(b)) return false;
   return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
 }
 
