@@ -1,0 +1,82 @@
+// test/modes/loader.test.ts
+import { describe, expect, test, beforeEach, afterEach } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { loadCustomModes } from "../../src/modes/loader";
+
+describe("YAML mode loader", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "kodo-modes-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true });
+	});
+
+	test("loads a valid YAML mode", async () => {
+		await writeFile(
+			join(dir, "devops.yaml"),
+			`
+name: DevOps Expert
+slug: devops
+extends: code
+autonomy: supervised
+memory: full
+planning: true
+instructions: |
+  You are a DevOps expert.
+allowedTools:
+  - bash
+  - read
+  - write
+`,
+		);
+
+		const modes = await loadCustomModes(dir);
+		expect(modes.length).toBe(1);
+		expect(modes[0]!.slug).toBe("devops");
+		expect(modes[0]!.autonomyLevel).toBe("supervised");
+		expect(modes[0]!.planningEnabled).toBe(true);
+	});
+
+	test("ignores non-yaml files", async () => {
+		await writeFile(join(dir, "readme.md"), "# Not a mode");
+		const modes = await loadCustomModes(dir);
+		expect(modes.length).toBe(0);
+	});
+
+	test("handles empty directory", async () => {
+		const modes = await loadCustomModes(dir);
+		expect(modes.length).toBe(0);
+	});
+
+	test("handles missing directory", async () => {
+		const modes = await loadCustomModes("/nonexistent/path");
+		const modes2 = await loadCustomModes("Z:/nonexistent/path");
+		expect(modes.length).toBe(0);
+		expect(modes2.length).toBe(0);
+	});
+
+	test("sets notebook binding", async () => {
+		await writeFile(
+			join(dir, "cyber.yaml"),
+			`
+name: Cybersec
+slug: cybersec
+extends: code
+autonomy: supervised
+notebook: CyberSecBDD
+notebook_id: abc123
+instructions: Security expert
+allowedTools:
+  - bash
+`,
+		);
+
+		const modes = await loadCustomModes(dir);
+		expect(modes[0]!.notebookId).toBe("abc123");
+	});
+});
