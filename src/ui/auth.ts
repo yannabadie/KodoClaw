@@ -1,8 +1,13 @@
 // src/ui/auth.ts
-import { createHmac, randomBytes } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 function hmacSign(data: string, secret: string): string {
   return createHmac("sha256", secret).update(data).digest("hex");
+}
+
+function hmacEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
 }
 
 export function generatePairingToken(secret: string): string {
@@ -18,7 +23,7 @@ export function verifyPairingToken(token: string, secret: string, ttlMs: number)
   if (parts.length !== 3) return false;
   const [ts, nonce, sig] = parts as [string, string, string];
   const payload = `${ts}:${nonce}`;
-  if (hmacSign(payload, secret) !== sig) return false;
+  if (!hmacEqual(hmacSign(payload, secret), sig)) return false;
   const age = Date.now() - parseInt(ts);
   return age >= 0 && age <= ttlMs;
 }
@@ -34,5 +39,5 @@ export function verifySessionToken(token: string, secret: string): boolean {
   if (lastColon === -1) return false;
   const payload = token.slice(0, lastColon);
   const sig = token.slice(lastColon + 1);
-  return hmacSign(payload, secret) === sig;
+  return hmacEqual(hmacSign(payload, secret), sig);
 }

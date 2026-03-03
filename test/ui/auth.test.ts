@@ -34,4 +34,21 @@ describe("UI auth", () => {
     const session = createSessionToken(secret);
     expect(verifySessionToken(session + "x", secret)).toBe(false);
   });
+
+  test("rejects tokens with single-character mutations", () => {
+    const pairing = generatePairingToken(secret);
+    const session = createSessionToken(secret);
+
+    // Flip one character in the signature portion of the pairing token
+    const pairingChars = pairing.split("");
+    const lastChar = pairingChars[pairingChars.length - 1] as string;
+    pairingChars[pairingChars.length - 1] = lastChar === "a" ? "b" : "a";
+    expect(verifyPairingToken(pairingChars.join(""), secret, 300_000)).toBe(false);
+
+    // Flip one character in the signature portion of the session token
+    const sessionChars = session.split("");
+    const lastSessionChar = sessionChars[sessionChars.length - 1] as string;
+    sessionChars[sessionChars.length - 1] = lastSessionChar === "a" ? "b" : "a";
+    expect(verifySessionToken(sessionChars.join(""), secret)).toBe(false);
+  });
 });
