@@ -34,6 +34,8 @@ export interface MemCell {
 	foresight?: Foresight;
 	/** SHA-256 checksum of canonical content for integrity verification. */
 	checksum: string;
+	/** Importance weight for decay calculation (0.0-1.0+, default 1.0). */
+	importance?: number;
 }
 
 function isMemCell(v: unknown): v is MemCell {
@@ -65,12 +67,17 @@ export function computeChecksum(cell: {
 	episode: string;
 	facts: string[];
 	tags: string[];
+	importance?: number;
 }): string {
-	const canonical = JSON.stringify({
+	const base: Record<string, unknown> = {
 		episode: cell.episode,
 		facts: [...cell.facts].sort(),
 		tags: [...cell.tags].sort(),
-	});
+	};
+	if (cell.importance !== undefined) {
+		base.importance = cell.importance;
+	}
+	const canonical = JSON.stringify(base);
 	return createHash("sha256").update(canonical).digest("hex");
 }
 
@@ -102,6 +109,7 @@ export async function createMemCell(dir: string, input: CreateMemCellInput): Pro
 		tags: input.tags,
 		timestamp: new Date().toISOString(),
 		checksum: "", // placeholder — computed below
+		importance: 1.0,
 	};
 
 	if (input.foresight) {

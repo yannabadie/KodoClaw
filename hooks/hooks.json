@@ -1,39 +1,96 @@
 {
+	"description": "Kodo — intelligent memory, security, planning plugin",
 	"hooks": {
 		"PreToolUse": [
 			{
 				"matcher": "*",
-				"command": "bun run src/hooks/cli.ts PreToolUse"
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" PreToolUse"
+					}
+				]
 			}
 		],
 		"PostToolUse": [
 			{
 				"matcher": "*",
-				"command": "bun run src/hooks/cli.ts PostToolUse"
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" PostToolUse"
+					}
+				]
 			}
 		],
 		"Stop": [
 			{
-				"matcher": "*",
-				"command": "bun run src/hooks/cli.ts Stop"
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" Stop"
+					}
+				]
 			}
 		],
 		"Notification": [
 			{
-				"matcher": "*",
-				"command": "bun run src/hooks/cli.ts Notification"
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" Notification"
+					}
+				]
 			}
 		],
 		"PreCompact": [
 			{
-				"matcher": "*",
-				"command": "bun run src/hooks/cli.ts PreCompact"
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" PreCompact"
+					}
+				]
+			}
+		],
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" SessionStart"
+					}
+				]
+			}
+		],
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" UserPromptSubmit"
+					}
+				]
+			}
+		],
+		"PostToolUseFailure": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" PostToolUseFailure"
+					}
+				]
 			}
 		],
 		"SessionEnd": [
 			{
-				"matcher": "*",
-				"command": "bun run src/hooks/cli.ts SessionEnd"
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" SessionEnd"
+					}
+				]
 			}
 		]
 	}

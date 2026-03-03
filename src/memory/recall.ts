@@ -1,7 +1,9 @@
 /**
- * Recall pipeline utilities: cosine similarity, Reciprocal Rank Fusion, and TF-IDF.
- * Zero external dependencies.
+ * Recall pipeline utilities: cosine similarity, Reciprocal Rank Fusion, TF-IDF,
+ * and importance-weighted decay scoring.
  */
+
+import { computeRetention } from "./decay";
 
 export interface RankedItem {
 	id: string;
@@ -66,4 +68,29 @@ export function tfidfVector(
 		const idf = docFreq > 0 ? Math.log(totalDocs / docFreq) : 0;
 		return termFreq * idf;
 	});
+}
+
+/**
+ * Apply importance-weighted decay to ranked search results.
+ * Multiplies each item's BM25/similarity score by its retention factor,
+ * then re-sorts by the adjusted score.
+ */
+export function applyDecayToScores(
+	results: RankedItem[],
+	cellTimestamps: Map<string, { timestamp: string; importance?: number }>,
+	nowMs?: number,
+): RankedItem[] {
+	const now = nowMs ?? Date.now();
+	return results
+		.map((r) => {
+			const meta = cellTimestamps.get(r.id);
+			if (!meta) return r;
+			const retention = computeRetention(
+				new Date(meta.timestamp).getTime(),
+				now,
+				meta.importance ?? 1.0,
+			);
+			return { id: r.id, score: r.score * retention };
+		})
+		.sort((a, b) => b.score - a.score);
 }
