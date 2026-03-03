@@ -5,6 +5,8 @@
  * BM25 parameters: k1 = 1.5, b = 0.75
  */
 
+import { isStopWord, stem } from "./stemmer";
+
 export interface BM25Result {
 	id: string;
 	score: number;
@@ -30,7 +32,8 @@ function tokenize(text: string): string[] {
 	return text
 		.toLowerCase()
 		.split(/\W+/)
-		.filter((t) => t.length > 1);
+		.filter((t) => t.length > 0 && !isStopWord(t))
+		.map(stem);
 }
 
 export class BM25Index {

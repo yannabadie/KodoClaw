@@ -40,4 +40,21 @@ describe("BM25Index", () => {
 		const results = idx2.search("typescript");
 		expect(results[0]?.id).toBe("doc1");
 	});
+
+	test("finds morphological variants", () => {
+		const idx = new BM25Index();
+		idx.add("doc1", "user authentication with tokens");
+		idx.add("doc2", "python flask database postgresql");
+		// "authenticated" stems to "authenticat" matching "authentication" -> "authenticat"
+		const results = idx.search("authenticated");
+		expect(results.length).toBeGreaterThan(0);
+		expect(results[0]?.id).toBe("doc1");
+	});
+
+	test("filters stop words from queries", () => {
+		const idx = new BM25Index();
+		idx.add("doc1", "express backend framework");
+		// A query of only stop words should return no results
+		expect(idx.search("the is a")).toEqual([]);
+	});
 });
