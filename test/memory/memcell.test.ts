@@ -120,6 +120,24 @@ describe("MemCell", () => {
 		expect(cells).toEqual([]);
 	});
 
+	test("loadMemCells skips invalid JSON files", async () => {
+		// Write a valid MemCell
+		await createMemCell(dir, {
+			episode: "Valid cell",
+			facts: ["valid"],
+			tags: ["test"],
+		});
+
+		// Write an invalid JSON file that is not a MemCell (missing required fields)
+		const invalidPath = join(dir, "mc_invalid.json");
+		await writeFile(invalidPath, JSON.stringify({ foo: "bar", baz: 42 }, null, 2), "utf-8");
+
+		const cells = await loadMemCells(dir);
+		// Only the valid cell should be loaded; the invalid one should be skipped
+		expect(cells.length).toBe(1);
+		expect(cells[0]?.episode).toBe("Valid cell");
+	});
+
 	test("loads legacy cells without checksum", async () => {
 		// Write a cell JSON without the checksum field (simulating a legacy cell)
 		const legacyCell = {

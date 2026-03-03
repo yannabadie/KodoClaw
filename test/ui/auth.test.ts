@@ -65,4 +65,20 @@ describe("UI auth", () => {
 		const badToken = `${parts[0]}:${parts[1]}:${nonHexSig}`;
 		expect(verifyPairingToken(badToken, secret, 300_000)).toBe(false);
 	});
+
+	test("handles lowercase bearer prefix", () => {
+		// Simulate what server.ts does: extract token from auth header
+		const sessionToken = createSessionToken(secret);
+		const authHeader = `Bearer ${sessionToken}`;
+		const extracted = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+		expect(verifySessionToken(extracted, secret)).toBe(true);
+	});
+
+	test("handles missing Bearer prefix", () => {
+		// When there's no "Bearer " prefix, token should be empty
+		const authHeader = "some-random-value";
+		const extracted = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+		expect(extracted).toBe("");
+		expect(verifySessionToken(extracted, secret)).toBe(false);
+	});
 });

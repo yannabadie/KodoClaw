@@ -45,7 +45,9 @@ export function isConfidentialContent(content: string): boolean {
 export function redactConfidential(content: string): string {
 	let result = content;
 	for (const pattern of CONFIDENTIAL_PATTERNS) {
-		result = result.replace(new RegExp(pattern, "g"), "[REDACTED]");
+		// Use the original pattern's source + flags, adding global flag
+		const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+		result = result.replace(new RegExp(pattern.source, flags), "[REDACTED]");
 	}
 	return result;
 }

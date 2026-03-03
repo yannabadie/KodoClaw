@@ -24,8 +24,8 @@ export function startServer(config: ServerConfig) {
 
 			// Auth check for API routes
 			if (url.pathname.startsWith("/api/")) {
-				const auth = req.headers.get("authorization");
-				const token = auth?.replace("Bearer ", "") ?? "";
+				const authHeader = req.headers.get("authorization") ?? "";
+				const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
 				if (!verifySessionToken(token, config.secret)) {
 					return Response.json({ error: "Unauthorized" }, { status: 401 });
 				}

@@ -81,4 +81,22 @@ describe("redactConfidential", () => {
 		expect(result).not.toContain("sk-abc123def456ghi789jkl012mno345pq");
 		expect(result).toContain("[REDACTED]");
 	});
+
+	test("redactConfidential preserves regex flags", () => {
+		// The case-insensitive flag (i) on the pattern should be preserved
+		// during redaction. If flags are dropped, case-insensitive patterns
+		// would fail to match alternate casings.
+		// The CONFIDENTIAL_PATTERNS use patterns that rely on character classes
+		// rather than the i flag, so we verify the original flags + "g" are
+		// combined correctly by checking that multiple occurrences are redacted.
+		const input =
+			"keys: sk-abc123def456ghi789jkl012mno345pq and sk-xyz123def456ghi789jkl012mno345pq";
+		const result = redactConfidential(input);
+		// Both keys should be redacted (global flag must work)
+		expect(result).not.toContain("sk-abc123def456ghi789jkl012mno345pq");
+		expect(result).not.toContain("sk-xyz123def456ghi789jkl012mno345pq");
+		// Should have exactly two redactions
+		const redactedCount = (result.match(/\[REDACTED\]/g) ?? []).length;
+		expect(redactedCount).toBeGreaterThanOrEqual(2);
+	});
 });

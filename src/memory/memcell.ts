@@ -36,6 +36,18 @@ export interface MemCell {
 	checksum: string;
 }
 
+function isMemCell(v: unknown): v is MemCell {
+	if (typeof v !== "object" || v === null) return false;
+	const obj = v as Record<string, unknown>;
+	return (
+		typeof obj.id === "string" &&
+		typeof obj.episode === "string" &&
+		Array.isArray(obj.facts) &&
+		Array.isArray(obj.tags) &&
+		typeof obj.timestamp === "string"
+	);
+}
+
 export interface CreateMemCellInput {
 	episode: string;
 	facts: string[];
@@ -127,7 +139,9 @@ export async function loadMemCells(dir: string): Promise<MemCell[]> {
 
 	for (const file of jsonFiles) {
 		const raw = await readFile(join(dir, file), "utf-8");
-		const cell: MemCell = JSON.parse(raw);
+		const parsed: unknown = JSON.parse(raw);
+		if (!isMemCell(parsed)) continue; // Skip invalid files
+		const cell = parsed;
 
 		// Integrity check — verify checksum before trusting cell content
 		if (!cell.checksum) {
