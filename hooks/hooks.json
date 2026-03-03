@@ -3,13 +3,13 @@
     "PreToolUse": [
       {
         "matcher": "*",
-        "command": "bun run src/plugin.ts preToolUse"
+        "command": "bun run src/hooks/cli.ts PreToolUse"
       }
     ],
     "PostToolUse": [
       {
         "matcher": "*",
-        "command": "bun run src/plugin.ts postToolUse"
+        "command": "bun run src/hooks/cli.ts PostToolUse"
       }
     ]
   }
