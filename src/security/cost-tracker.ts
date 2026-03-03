@@ -29,7 +29,7 @@ export class CostTracker {
 	private totalOutputTokens = 0;
 	private readonly budgetUsd: number;
 
-	constructor(budgetUsd: number = 10) {
+	constructor(budgetUsd = 10) {
 		this.budgetUsd = budgetUsd;
 	}
 
@@ -72,8 +72,7 @@ export class CostTracker {
 
 	private estimateCost(): number {
 		const inputCost = (this.totalInputTokens / 1_000_000) * INPUT_COST_PER_M;
-		const outputCost =
-			(this.totalOutputTokens / 1_000_000) * OUTPUT_COST_PER_M;
+		const outputCost = (this.totalOutputTokens / 1_000_000) * OUTPUT_COST_PER_M;
 		return Math.round((inputCost + outputCost) * 10000) / 10000; // 4 decimal places
 	}
 }

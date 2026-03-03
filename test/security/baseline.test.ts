@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type BehaviorEvent, BehaviorBaseline } from "../../src/security/baseline";
+import { BehaviorBaseline, type BehaviorEvent } from "../../src/security/baseline";
 
 function makeEvent(overrides: Partial<BehaviorEvent> = {}): BehaviorEvent {
 	return {
@@ -95,7 +95,14 @@ describe("BehaviorBaseline", () => {
 
 		// Record old events that would trigger all anomalies if they were recent
 		for (let i = 0; i < 51; i++) {
-			baseline.record(makeEvent({ timestamp: tenMinutesAgo, sensitive: true, riskLevel: "high", injectionScore: 1 }));
+			baseline.record(
+				makeEvent({
+					timestamp: tenMinutesAgo,
+					sensitive: true,
+					riskLevel: "high",
+					injectionScore: 1,
+				}),
+			);
 		}
 
 		const report = baseline.analyze();

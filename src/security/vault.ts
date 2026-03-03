@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { xchacha20poly1305 } from "@noble/ciphers/chacha";
 import {
@@ -87,7 +87,11 @@ export class Vault {
 		try {
 			text = await readFile(path, "utf-8");
 		} catch (err: unknown) {
-			if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT") {
+			if (
+				err instanceof Error &&
+				"code" in err &&
+				(err as NodeJS.ErrnoException).code === "ENOENT"
+			) {
 				return {};
 			}
 			throw err;
@@ -101,6 +105,8 @@ export class Vault {
 
 	private async saveStore(data: Record<string, string>): Promise<void> {
 		const path = join(this.dir, VAULT_FILE);
-		await writeFile(path, JSON.stringify(data), "utf-8");
+		const tmp = `${path}.tmp`;
+		await writeFile(tmp, JSON.stringify(data), "utf-8");
+		await rename(tmp, path);
 	}
 }

@@ -1,15 +1,15 @@
-import { describe, expect, test, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { assembleContext } from "../src/context/assembler";
 import { initKodo } from "../src/index";
-import { Vault } from "../src/security/vault";
+import { BM25Index } from "../src/memory/bm25";
 import { createMemCell, loadMemCells } from "../src/memory/memcell";
 import { consolidate, loadMemScenes } from "../src/memory/memscene";
 import { UserProfile } from "../src/memory/profile";
-import { BM25Index } from "../src/memory/bm25";
-import { assembleContext } from "../src/context/assembler";
 import { handlePreToolUse } from "../src/plugin";
+import { Vault } from "../src/security/vault";
 
 describe("integration: full Kodo lifecycle", () => {
 	let dir: string;

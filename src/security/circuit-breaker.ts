@@ -53,9 +53,7 @@ export class CircuitBreaker {
 		const state = this.currentState;
 
 		if (state === "open") {
-			throw new Error(
-				`Circuit breaker "${this.options.name}" is open -- service unavailable`,
-			);
+			throw new Error(`Circuit breaker "${this.options.name}" is open -- service unavailable`);
 		}
 
 		try {

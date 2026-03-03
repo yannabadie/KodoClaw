@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 
 const CLI_PATH = "src/hooks/cli.ts";
-const CWD = "C:/Projects/ClaudeClaw/kodo";
+const CWD = join(import.meta.dir, "../..");
 
 async function runCli(
 	hookType: string,
@@ -107,5 +108,33 @@ describe("hooks CLI wrapper", () => {
 		const { stderr, exitCode } = await runCliRaw(["PreToolUse"], "not valid json{{{");
 		expect(exitCode).not.toBe(0);
 		expect(stderr).toContain("Hook error");
+	});
+
+	test("rejects malformed PreToolUse payload", async () => {
+		const { stderr, exitCode } = await runCli("PreToolUse", { bad: true });
+		expect(exitCode).toBe(2);
+		expect(stderr).toContain("Invalid PreToolUse payload");
+	});
+
+	test("rejects PreToolUse payload missing params", async () => {
+		const { stderr, exitCode } = await runCli("PreToolUse", {
+			tool: "read",
+			mode: "code",
+			autonomy: "trusted",
+		});
+		expect(exitCode).toBe(2);
+		expect(stderr).toContain("Invalid PreToolUse payload");
+	});
+
+	test("rejects malformed PostToolUse payload", async () => {
+		const { stderr, exitCode } = await runCli("PostToolUse", { bad: true });
+		expect(exitCode).toBe(2);
+		expect(stderr).toContain("Invalid PostToolUse payload");
+	});
+
+	test("rejects PostToolUse payload with non-string output", async () => {
+		const { stderr, exitCode } = await runCli("PostToolUse", { output: 123 });
+		expect(exitCode).toBe(2);
+		expect(stderr).toContain("Invalid PostToolUse payload");
 	});
 });

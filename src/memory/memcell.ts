@@ -10,6 +10,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { scanForInjection } from "../security/injection";
 
 export interface Foresight {
 	/** Description of anticipated future action or intent. */
@@ -48,7 +49,11 @@ export interface CreateMemCellInput {
  * The canonical form sorts `facts` and `tags` to ensure deterministic hashing
  * regardless of insertion order.
  */
-export function computeChecksum(cell: { episode: string; facts: string[]; tags: string[] }): string {
+export function computeChecksum(cell: {
+	episode: string;
+	facts: string[];
+	tags: string[];
+}): string {
 	const canonical = JSON.stringify({
 		episode: cell.episode,
 		facts: [...cell.facts].sort(),
@@ -70,6 +75,13 @@ export function verifyChecksum(cell: MemCell): boolean {
  * Create a new MemCell, persist it as a JSON file in `dir`, and return it.
  */
 export async function createMemCell(dir: string, input: CreateMemCellInput): Promise<MemCell> {
+	// Scan for injection in memory content
+	const contentToScan = [input.episode, ...input.facts].join(" ");
+	const injectionResult = scanForInjection(contentToScan);
+	if (injectionResult.action === "block") {
+		throw new Error(`Memory write blocked: injection detected (score: ${injectionResult.score})`);
+	}
+
 	const id = `mc_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 	const cell: MemCell = {
 		id,

@@ -9,6 +9,23 @@ import { handleStop } from "./stop";
 
 type HookType = "PreToolUse" | "PostToolUse" | "Stop" | "Notification";
 
+function validatePreToolInput(v: unknown): v is Parameters<typeof handlePreToolUse>[0] {
+	if (typeof v !== "object" || v === null) return false;
+	const obj = v as Record<string, unknown>;
+	return (
+		typeof obj.tool === "string" &&
+		typeof obj.mode === "string" &&
+		typeof obj.autonomy === "string" &&
+		typeof obj.params === "object" &&
+		obj.params !== null
+	);
+}
+
+function validatePostToolInput(v: unknown): v is Parameters<typeof handlePostToolUse>[0] {
+	if (typeof v !== "object" || v === null) return false;
+	return typeof (v as Record<string, unknown>).output === "string";
+}
+
 function isValidHookType(value: string): value is HookType {
 	return (
 		value === "PreToolUse" ||
@@ -47,16 +64,21 @@ async function main(): Promise<void> {
 	let result: unknown;
 	switch (hookType) {
 		case "PreToolUse":
-			result = handlePreToolUse(payload as Parameters<typeof handlePreToolUse>[0]);
+			if (!validatePreToolInput(payload)) {
+				process.stderr.write("Invalid PreToolUse payload\n");
+				process.exit(2);
+			}
+			result = handlePreToolUse(payload);
 			break;
 		case "PostToolUse":
-			result = handlePostToolUse(payload as Parameters<typeof handlePostToolUse>[0]);
+			if (!validatePostToolInput(payload)) {
+				process.stderr.write("Invalid PostToolUse payload\n");
+				process.exit(2);
+			}
+			result = handlePostToolUse(payload);
 			break;
 		case "Stop":
-			result = await handleStop(
-				payload as Parameters<typeof handleStop>[0],
-				baseDir,
-			);
+			result = await handleStop(payload as Parameters<typeof handleStop>[0], baseDir);
 			break;
 		case "Notification":
 			result = await handleNotification(

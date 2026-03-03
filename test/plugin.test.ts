@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	handlePreToolUse,
-	handlePostToolUse,
-	type HookInput,
-} from "../src/plugin";
+import { type HookInput, handlePostToolUse, handlePreToolUse } from "../src/plugin";
 
 describe("handlePreToolUse", () => {
 	test("allows read tool in any mode", () => {

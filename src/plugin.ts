@@ -1,12 +1,12 @@
+import { sanitize } from "./context/sanitizer";
 import { isSensitivePath } from "./security/blocklist";
+import { scanForInjection } from "./security/injection";
 import {
-	classifyShellRisk,
-	shouldConfirm,
 	type AutonomyLevel,
 	type PolicyDecision,
+	classifyShellRisk,
+	shouldConfirm,
 } from "./security/policy";
-import { scanForInjection } from "./security/injection";
-import { sanitize } from "./context/sanitizer";
 
 export interface HookInput {
 	tool: string;

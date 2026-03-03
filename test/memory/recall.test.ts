@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { reciprocalRankFusion, cosineSimilarity } from "../../src/memory/recall";
+import { cosineSimilarity, reciprocalRankFusion } from "../../src/memory/recall";
 
 describe("cosineSimilarity", () => {
 	test("identical vectors return 1", () => {
@@ -15,8 +15,16 @@ describe("cosineSimilarity", () => {
 
 describe("reciprocalRankFusion", () => {
 	test("fuses two ranked lists", () => {
-		const listA = [{ id: "a", score: 3 }, { id: "b", score: 2 }, { id: "c", score: 1 }];
-		const listB = [{ id: "b", score: 3 }, { id: "c", score: 2 }, { id: "a", score: 1 }];
+		const listA = [
+			{ id: "a", score: 3 },
+			{ id: "b", score: 2 },
+			{ id: "c", score: 1 },
+		];
+		const listB = [
+			{ id: "b", score: 3 },
+			{ id: "c", score: 2 },
+			{ id: "a", score: 1 },
+		];
 		const fused = reciprocalRankFusion([listA, listB]);
 		expect(fused.length).toBe(3);
 		expect(fused.map((r) => r.id)).toContain("a");

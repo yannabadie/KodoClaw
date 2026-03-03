@@ -55,6 +55,12 @@ const INJECTION_MARKERS: readonly string[] = [
 	"jailbreak",
 	"do anything now",
 	"developer mode",
+
+	// Roleplay-based injection
+	"pretend you are",
+	"imagine you're a",
+	"roleplay as",
+	"in this fictional scenario",
 ];
 
 // ---------------------------------------------------------------------------
@@ -79,6 +85,10 @@ function normalizeHomoglyphs(text: string): string {
 	for (const [cyrillic, latin] of Object.entries(homoglyphs)) {
 		result = result.replaceAll(cyrillic, latin);
 	}
+
+	// Strip zero-width characters used for evasion
+	result = result.replace(/[\u200B\u200C\u200D\uFEFF\u00AD]/g, "");
+
 	return result;
 }
 

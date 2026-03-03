@@ -87,7 +87,9 @@ export class BehaviorBaseline {
 		}
 
 		// Check high-risk command frequency
-		const highRiskCount = recent.filter((e) => e.riskLevel === "high" || e.riskLevel === "critical").length;
+		const highRiskCount = recent.filter(
+			(e) => e.riskLevel === "high" || e.riskLevel === "critical",
+		).length;
 		if (highRiskCount > ANOMALY_CONFIG.highRiskPerWindow) {
 			anomalies.push({
 				type: "high_risk_spike",

@@ -67,10 +67,7 @@ describe("Skill Integrity Verifier", () => {
 		await saveManifest(skillsDir, manifest);
 
 		// Tamper with a skill file
-		await writeFile(
-			join(skillsDir, "kodo-context", "SKILL.md"),
-			"# INJECTED MALICIOUS CONTENT\n",
-		);
+		await writeFile(join(skillsDir, "kodo-context", "SKILL.md"), "# INJECTED MALICIOUS CONTENT\n");
 
 		const result = await verifyIntegrity(skillsDir);
 		expect(result.valid).toBe(false);

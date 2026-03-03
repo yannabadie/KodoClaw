@@ -1,9 +1,9 @@
 // src/modes/loader.ts
-import { readdir, readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { BaseMode } from "./base-mode";
 import type { AutonomyLevel } from "../security/policy";
+import { BaseMode } from "./base-mode";
 
 interface YamlModeConfig {
 	name: string;
