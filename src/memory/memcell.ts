@@ -114,7 +114,12 @@ export async function createMemCell(dir: string, input: CreateMemCellInput): Pro
  * from the returned cells. The on-disk files are not modified.
  */
 export async function loadMemCells(dir: string): Promise<MemCell[]> {
-	const entries = await readdir(dir);
+	let entries: string[];
+	try {
+		entries = await readdir(dir);
+	} catch {
+		return [];
+	}
 	const jsonFiles = entries.filter((f) => f.endsWith(".json"));
 	const now = new Date();
 
