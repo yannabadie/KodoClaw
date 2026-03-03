@@ -35,6 +35,6 @@ describe("reciprocalRankFusion", () => {
 		const list = [{ id: "x", score: 1 }];
 		const fused = reciprocalRankFusion([list]);
 		expect(fused.length).toBe(1);
-		expect(fused[0]!.id).toBe("x");
+		expect(fused[0]?.id).toBe("x");
 	});
 });

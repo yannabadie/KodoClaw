@@ -18,7 +18,7 @@ const MAX_CHARS = TOKEN_BUDGET * CHARS_PER_TOKEN;
 
 function truncate(text: string, maxChars: number): string {
 	if (text.length <= maxChars) return text;
-	return text.slice(0, maxChars) + "\n[...truncated]";
+	return `${text.slice(0, maxChars)}\n[...truncated]`;
 }
 
 export function assembleContext(input: AssemblerInput): string {

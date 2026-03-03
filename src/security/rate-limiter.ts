@@ -64,7 +64,7 @@ export class RateLimiter {
 		const cutoff = now - this.options.windowMs;
 		// Find first index that is within the window
 		let i = 0;
-		while (i < this.timestamps.length && this.timestamps[i]! < cutoff) {
+		while (i < this.timestamps.length && (this.timestamps[i] ?? 0) < cutoff) {
 			i++;
 		}
 		if (i > 0) {

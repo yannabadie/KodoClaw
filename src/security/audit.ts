@@ -35,7 +35,7 @@ export class AuditLog {
 		const dateStr = now.toISOString().slice(0, 10);
 		const record: AuditRecord = { ts: now.toISOString(), ...entry };
 		const filePath = join(this.dir, `${dateStr}.jsonl`);
-		await appendFile(filePath, JSON.stringify(record) + "\n", "utf-8");
+		await appendFile(filePath, `${JSON.stringify(record)}\n`, "utf-8");
 	}
 
 	async readToday(): Promise<AuditRecord[]> {

@@ -30,7 +30,7 @@ describe("handlePreCompact", () => {
 		expect(files.length).toBe(1);
 		expect(files[0]).toMatch(/^compact-\d+\.json$/);
 
-		const content = await readFile(join(memoryDir, files[0]!), "utf-8");
+		const content = await readFile(join(memoryDir, files[0] as string), "utf-8");
 		const parsed = JSON.parse(content) as {
 			sessionId: string;
 			trigger: string;

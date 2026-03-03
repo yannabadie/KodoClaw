@@ -37,9 +37,9 @@ allowedTools:
 
 		const modes = await loadCustomModes(dir);
 		expect(modes.length).toBe(1);
-		expect(modes[0]!.slug).toBe("devops");
-		expect(modes[0]!.autonomyLevel).toBe("supervised");
-		expect(modes[0]!.planningEnabled).toBe(true);
+		expect(modes[0]?.slug).toBe("devops");
+		expect(modes[0]?.autonomyLevel).toBe("supervised");
+		expect(modes[0]?.planningEnabled).toBe(true);
 	});
 
 	test("ignores non-yaml files", async () => {
@@ -77,6 +77,6 @@ allowedTools:
 		);
 
 		const modes = await loadCustomModes(dir);
-		expect(modes[0]!.notebookId).toBe("abc123");
+		expect(modes[0]?.notebookId).toBe("abc123");
 	});
 });

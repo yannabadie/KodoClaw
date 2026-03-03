@@ -33,7 +33,7 @@ describe("AuditLog", () => {
 		const files = await readdir(dir);
 		expect(files.length).toBe(1);
 		expect(files[0]).toMatch(/^\d{4}-\d{2}-\d{2}\.jsonl$/);
-		const content = await readFile(join(dir, files[0]!), "utf-8");
+		const content = await readFile(join(dir, files[0] as string), "utf-8");
 		const parsed = JSON.parse(content.trim());
 		expect(parsed.session).toBe("sess_1");
 		expect(parsed.ts).toBeDefined();
@@ -64,7 +64,7 @@ describe("AuditLog", () => {
 		});
 		const files = await readdir(dir);
 		expect(files.length).toBe(1);
-		const lines = (await readFile(join(dir, files[0]!), "utf-8")).trim().split("\n");
+		const lines = (await readFile(join(dir, files[0] as string), "utf-8")).trim().split("\n");
 		expect(lines.length).toBe(2);
 	});
 

@@ -121,7 +121,8 @@ export class UserProfile {
 			if (lines.length > 0) lines.push("");
 			lines.push("Temporary States:");
 			for (const key of tempKeys) {
-				const state = this.temporaryStates[key]!;
+				const state = this.temporaryStates[key];
+				if (!state) continue;
 				lines.push(`- ${key}: ${state.value} (expires ${state.expires})`);
 			}
 		}

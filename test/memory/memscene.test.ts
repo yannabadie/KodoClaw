@@ -28,7 +28,7 @@ describe("MemScene", () => {
 		await consolidate(dir, cell, []);
 		const scenes = await loadMemScenes(dir);
 		expect(scenes.length).toBe(1);
-		expect(scenes[0]!.cells).toContain("mc_1");
+		expect(scenes[0]?.cells).toContain("mc_1");
 	});
 
 	test("assimilates similar cell into existing scene", async () => {
@@ -39,8 +39,8 @@ describe("MemScene", () => {
 		await consolidate(dir, cell2, scenes1);
 		const scenes2 = await loadMemScenes(dir);
 		expect(scenes2.length).toBe(1);
-		expect(scenes2[0]!.cells).toContain("mc_1");
-		expect(scenes2[0]!.cells).toContain("mc_2");
+		expect(scenes2[0]?.cells).toContain("mc_1");
+		expect(scenes2[0]?.cells).toContain("mc_2");
 	});
 
 	test("creates separate scene for unrelated cell", async () => {
@@ -75,7 +75,7 @@ describe("MemScene", () => {
 		await consolidate(dir, cell2, scenes1);
 		const scenes2 = await loadMemScenes(dir);
 		expect(scenes2.length).toBe(1);
-		const scene = scenes2[0]!;
+		const scene = scenes2[0] as MemScene;
 		expect(scene.summary).toContain("Uses JWT tokens");
 		expect(scene.summary).toContain("Added session auth");
 	});

@@ -42,8 +42,8 @@ describe("BehaviorBaseline", () => {
 		expect(report.isNormal).toBe(false);
 		const spike = report.anomalies.find((a) => a.type === "tool_frequency_spike");
 		expect(spike).toBeDefined();
-		expect(spike!.currentValue).toBe(51);
-		expect(spike!.threshold).toBe(50);
+		expect(spike?.currentValue).toBe(51);
+		expect(spike?.threshold).toBe(50);
 	});
 
 	test("detects sensitive access spike", () => {
@@ -56,8 +56,8 @@ describe("BehaviorBaseline", () => {
 		expect(report.isNormal).toBe(false);
 		const spike = report.anomalies.find((a) => a.type === "sensitive_access_spike");
 		expect(spike).toBeDefined();
-		expect(spike!.currentValue).toBe(6);
-		expect(spike!.threshold).toBe(5);
+		expect(spike?.currentValue).toBe(6);
+		expect(spike?.threshold).toBe(5);
 	});
 
 	test("detects high risk command spike", () => {
@@ -71,8 +71,8 @@ describe("BehaviorBaseline", () => {
 		expect(report.isNormal).toBe(false);
 		const spike = report.anomalies.find((a) => a.type === "high_risk_spike");
 		expect(spike).toBeDefined();
-		expect(spike!.currentValue).toBe(4);
-		expect(spike!.threshold).toBe(3);
+		expect(spike?.currentValue).toBe(4);
+		expect(spike?.threshold).toBe(3);
 	});
 
 	test("detects injection spike", () => {
@@ -85,8 +85,8 @@ describe("BehaviorBaseline", () => {
 		expect(report.isNormal).toBe(false);
 		const spike = report.anomalies.find((a) => a.type === "injection_spike");
 		expect(spike).toBeDefined();
-		expect(spike!.currentValue).toBe(3);
-		expect(spike!.threshold).toBe(2);
+		expect(spike?.currentValue).toBe(3);
+		expect(spike?.threshold).toBe(2);
 	});
 
 	test("ignores events outside window", () => {

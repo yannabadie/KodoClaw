@@ -37,7 +37,7 @@ describe("UI auth", () => {
 
 	test("rejects tampered session token", () => {
 		const session = createSessionToken(secret);
-		expect(verifySessionToken(session + "x", secret)).toBe(false);
+		expect(verifySessionToken(`${session}x`, secret)).toBe(false);
 	});
 
 	test("rejects tokens with single-character mutations", () => {
@@ -61,7 +61,7 @@ describe("UI auth", () => {
 		const token = generatePairingToken(secret);
 		const parts = token.split(":");
 		// Replace the hex signature with non-hex characters
-		const nonHexSig = "g".repeat(parts[2]!.length);
+		const nonHexSig = "g".repeat(parts[2]?.length);
 		const badToken = `${parts[0]}:${parts[1]}:${nonHexSig}`;
 		expect(verifyPairingToken(badToken, secret, 300_000)).toBe(false);
 	});

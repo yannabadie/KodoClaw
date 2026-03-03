@@ -1,40 +1,40 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "*",
-        "command": "bun run src/hooks/cli.ts PreToolUse"
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "*",
-        "command": "bun run src/hooks/cli.ts PostToolUse"
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "*",
-        "command": "bun run src/hooks/cli.ts Stop"
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "*",
-        "command": "bun run src/hooks/cli.ts Notification"
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "*",
-        "command": "bun run src/hooks/cli.ts PreCompact"
-      }
-    ],
-    "SessionEnd": [
-      {
-        "matcher": "*",
-        "command": "bun run src/hooks/cli.ts SessionEnd"
-      }
-    ]
-  }
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "*",
+				"command": "bun run src/hooks/cli.ts PreToolUse"
+			}
+		],
+		"PostToolUse": [
+			{
+				"matcher": "*",
+				"command": "bun run src/hooks/cli.ts PostToolUse"
+			}
+		],
+		"Stop": [
+			{
+				"matcher": "*",
+				"command": "bun run src/hooks/cli.ts Stop"
+			}
+		],
+		"Notification": [
+			{
+				"matcher": "*",
+				"command": "bun run src/hooks/cli.ts Notification"
+			}
+		],
+		"PreCompact": [
+			{
+				"matcher": "*",
+				"command": "bun run src/hooks/cli.ts PreCompact"
+			}
+		],
+		"SessionEnd": [
+			{
+				"matcher": "*",
+				"command": "bun run src/hooks/cli.ts SessionEnd"
+			}
+		]
+	}
 }

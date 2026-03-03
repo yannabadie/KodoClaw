@@ -87,7 +87,7 @@ function normalizeHomoglyphs(text: string): string {
 	}
 
 	// Strip zero-width characters used for evasion
-	result = result.replace(/[\u200B\u200C\u200D\uFEFF\u00AD]/g, "");
+	result = result.replace(/\u200B|\u200C|\u200D|\uFEFF|\u00AD/g, "");
 
 	return result;
 }

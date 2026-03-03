@@ -31,7 +31,7 @@ describe("MilestoneLibrary", () => {
 		await lib.archive(plan);
 		const all = await lib.list();
 		expect(all.length).toBe(1);
-		expect(all[0]!.task).toBe("Add OAuth2");
+		expect(all[0]?.task).toBe("Add OAuth2");
 	});
 
 	test("finds similar past plans", async () => {

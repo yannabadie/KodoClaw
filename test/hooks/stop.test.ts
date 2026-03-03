@@ -31,7 +31,7 @@ describe("handleStop", () => {
 		expect(files.length).toBe(1);
 		expect(files[0]).toMatch(/^\d{4}-\d{2}-\d{2}-sessions\.jsonl$/);
 
-		const content = await readFile(join(auditDir, files[0]!), "utf-8");
+		const content = await readFile(join(auditDir, files[0] as string), "utf-8");
 		const parsed = JSON.parse(content.trim()) as {
 			sessionId: string;
 			toolCalls: number;
@@ -72,7 +72,7 @@ describe("handleStop", () => {
 
 		const auditDir = join(dir, "audit");
 		const files = await readdir(auditDir);
-		const content = await readFile(join(auditDir, files[0]!), "utf-8");
+		const content = await readFile(join(auditDir, files[0] as string), "utf-8");
 		const parsed = JSON.parse(content.trim()) as { reason: string };
 		expect(parsed.reason).toBe("error");
 	});

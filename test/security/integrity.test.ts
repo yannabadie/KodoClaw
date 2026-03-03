@@ -44,8 +44,8 @@ describe("Skill Integrity Verifier", () => {
 
 		const loaded = await loadManifest(skillsDir);
 		expect(loaded).not.toBeNull();
-		expect(loaded!.files).toEqual(manifest.files);
-		expect(loaded!.generatedAt).toBe(manifest.generatedAt);
+		expect(loaded?.files).toEqual(manifest.files);
+		expect(loaded?.generatedAt).toBe(manifest.generatedAt);
 
 		// Verify the file is valid JSON on disk
 		const raw = await readFile(join(skillsDir, ".manifest.json"), "utf-8");

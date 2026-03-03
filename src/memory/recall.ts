@@ -37,7 +37,8 @@ export function reciprocalRankFusion(rankedLists: RankedItem[][]): RankedItem[] 
 	const scores = new Map<string, number>();
 	for (const list of rankedLists) {
 		for (let rank = 0; rank < list.length; rank++) {
-			const item = list[rank]!;
+			const item = list[rank];
+			if (!item) continue;
 			const rrf = 1 / (RRF_K + rank + 1);
 			scores.set(item.id, (scores.get(item.id) ?? 0) + rrf);
 		}
