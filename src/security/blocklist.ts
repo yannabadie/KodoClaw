@@ -6,7 +6,9 @@ const RESTRICTED_FILES = [
 const RESTRICTED_SUFFIXES = [".pem", ".key", ".p12", ".pfx", ".kubeconfig", ".ovpn", ".netrc"];
 const RESTRICTED_DIRS = [".ssh", ".aws", ".gnupg", ".kube", ".docker", ".azure", ".secrets"];
 const CONFIDENTIAL_PATTERNS: RegExp[] = [
-  /[A-Za-z0-9+/]{40,}/,
+  /[A-Za-z0-9+/]{40,}={1,2}/,
+  /sk-ant-[a-zA-Z0-9-]{32,}/,
+  /Bearer\s+[A-Za-z0-9._~+/-]{20,}/,
   /sk-[a-zA-Z0-9]{32,}/,
   /ghp_[a-zA-Z0-9]{30,}/,
   /AKIA[0-9A-Z]{16}/,

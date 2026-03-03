@@ -49,4 +49,28 @@ describe("isConfidentialContent", () => {
     expect(isConfidentialContent("hello world")).toBe(false);
     expect(isConfidentialContent("const x = 42")).toBe(false);
   });
+  test("does NOT flag git SHA as confidential", () => {
+    expect(isConfidentialContent("abc123def456abc123def456abc123def456abc1")).toBe(false);
+  });
+  test("does NOT flag JWT body as confidential", () => {
+    expect(isConfidentialContent("eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIn0")).toBe(false);
+  });
+  test("detects base64 with padding as confidential", () => {
+    expect(isConfidentialContent("aGVsbG8gd29ybGQgdGhpcyBpcyBhIHNlY3JldCBrZXkgdGVzdA==")).toBe(true);
+  });
+  test("detects Anthropic API key", () => {
+    expect(isConfidentialContent("sk-ant-api03-abcdef123456abcdef123456abcdef1234")).toBe(true);
+  });
+  test("detects Bearer token", () => {
+    expect(isConfidentialContent("Bearer eyJhbGciOiJIUzI1NiJ9.test")).toBe(true);
+  });
+});
+
+describe("redactConfidential", () => {
+  test("redacts known key patterns", () => {
+    const input = "key: sk-abc123def456ghi789jkl012mno345pq";
+    const result = redactConfidential(input);
+    expect(result).not.toContain("sk-abc123def456ghi789jkl012mno345pq");
+    expect(result).toContain("[REDACTED]");
+  });
 });
