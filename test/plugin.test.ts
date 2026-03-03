@@ -50,6 +50,52 @@ describe("handlePreToolUse", () => {
 		const result = handlePreToolUse(input);
 		expect(result.decision).toBe("block");
 	});
+
+	test("blocks glob pattern targeting .ssh directory", () => {
+		const input: HookInput = {
+			tool: "glob",
+			params: { pattern: ".ssh/**/*" },
+			mode: "code",
+			autonomy: "trusted",
+		};
+		const result = handlePreToolUse(input);
+		expect(result.decision).toBe("block");
+		expect(result.reason).toContain("sensitive");
+	});
+
+	test("blocks grep on sensitive path", () => {
+		const input: HookInput = {
+			tool: "grep",
+			params: { pattern: "password", path: "/home/user/.aws/credentials" },
+			mode: "code",
+			autonomy: "trusted",
+		};
+		const result = handlePreToolUse(input);
+		expect(result.decision).toBe("block");
+		expect(result.reason).toContain("sensitive");
+	});
+
+	test("allows glob on safe patterns", () => {
+		const input: HookInput = {
+			tool: "glob",
+			params: { pattern: "src/**/*.ts" },
+			mode: "code",
+			autonomy: "trusted",
+		};
+		const result = handlePreToolUse(input);
+		expect(result.decision).toBe("allow");
+	});
+
+	test("allows grep on safe paths", () => {
+		const input: HookInput = {
+			tool: "grep",
+			params: { pattern: "TODO", path: "src/main.ts" },
+			mode: "code",
+			autonomy: "trusted",
+		};
+		const result = handlePreToolUse(input);
+		expect(result.decision).toBe("allow");
+	});
 });
 
 describe("handlePostToolUse", () => {

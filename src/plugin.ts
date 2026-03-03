@@ -25,10 +25,51 @@ export interface PostToolResult {
 	sanitizedOutput: string;
 }
 
+export function extractPaths(tool: string, params: Record<string, unknown>): string[] {
+	const paths: string[] = [];
+
+	if (["read", "write", "edit"].includes(tool)) {
+		const filePath = (params.file_path ?? params.path ?? "") as string;
+		if (filePath) paths.push(filePath);
+	}
+
+	if (tool === "glob") {
+		const pattern = (params.pattern ?? "") as string;
+		if (pattern) {
+			// Extract directory portion before first glob wildcard
+			const firstWild = pattern.search(/[*?{[]/);
+			if (firstWild > 0) {
+				paths.push(pattern.substring(0, firstWild));
+			} else if (firstWild === -1) {
+				// No wildcard — treat the whole pattern as a path
+				paths.push(pattern);
+			}
+		}
+		const dir = (params.path ?? "") as string;
+		if (dir) paths.push(dir);
+	}
+
+	if (tool === "grep") {
+		const searchPath = (params.path ?? "") as string;
+		if (searchPath) paths.push(searchPath);
+		const glob = (params.glob ?? "") as string;
+		if (glob) {
+			const firstWild = glob.search(/[*?{[]/);
+			if (firstWild > 0) {
+				paths.push(glob.substring(0, firstWild));
+			} else if (firstWild === -1) {
+				paths.push(glob);
+			}
+		}
+	}
+
+	return paths;
+}
+
 export function handlePreToolUse(input: HookInput): PreToolResult {
-	// Check sensitive file paths for read/write/edit tools
-	if (["read", "write", "edit"].includes(input.tool)) {
-		const filePath = (input.params.file_path ?? input.params.path ?? "") as string;
+	// Check sensitive file paths for read/write/edit/glob/grep tools
+	const paths = extractPaths(input.tool, input.params);
+	for (const filePath of paths) {
 		if (isSensitivePath(filePath)) {
 			return { decision: "block", reason: `Blocked: sensitive file path "${filePath}"` };
 		}
