@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type MemCell, createMemCell, loadMemCells } from "../../src/memory/memcell";
+import { readFile, writeFile } from "node:fs/promises";
+import {
+	type MemCell,
+	computeChecksum,
+	createMemCell,
+	loadMemCells,
+	verifyChecksum,
+} from "../../src/memory/memcell";
 
 describe("MemCell", () => {
 	let dir: string;
@@ -53,5 +60,66 @@ describe("MemCell", () => {
 		});
 		const cells = await loadMemCells(dir);
 		expect(cells[0]?.foresight).toBeUndefined();
+	});
+
+	test("creates memcell with checksum", async () => {
+		const cell = await createMemCell(dir, {
+			episode: "Checksum test",
+			facts: ["f1"],
+			tags: ["t1"],
+		});
+		expect(cell.checksum).toBeDefined();
+		expect(cell.checksum).toMatch(/^[0-9a-f]{64}$/);
+	});
+
+	test("verifyChecksum returns true for untampered cell", async () => {
+		const cell = await createMemCell(dir, {
+			episode: "Integrity check",
+			facts: ["secure"],
+			tags: ["security"],
+		});
+		const cells = await loadMemCells(dir);
+		const loaded = cells.find((c) => c.id === cell.id);
+		expect(loaded).toBeDefined();
+		expect(verifyChecksum(loaded as MemCell)).toBe(true);
+	});
+
+	test("verifyChecksum detects tampered episode", async () => {
+		const cell = await createMemCell(dir, {
+			episode: "Original episode",
+			facts: ["original fact"],
+			tags: ["integrity"],
+		});
+		// Tamper with the file on disk
+		const filePath = join(dir, `${cell.id}.json`);
+		const raw = await readFile(filePath, "utf-8");
+		const parsed = JSON.parse(raw);
+		parsed.episode = "TAMPERED episode";
+		await writeFile(filePath, JSON.stringify(parsed, null, 2), "utf-8");
+
+		// Load should skip the tampered cell
+		const cells = await loadMemCells(dir);
+		const tampered = cells.find((c) => c.id === cell.id);
+		expect(tampered).toBeUndefined();
+	});
+
+	test("loads legacy cells without checksum", async () => {
+		// Write a cell JSON without the checksum field (simulating a legacy cell)
+		const legacyCell = {
+			id: "mc_legacy000001",
+			episode: "Legacy episode",
+			facts: ["old fact"],
+			tags: ["legacy"],
+			timestamp: "2025-01-01T00:00:00.000Z",
+		};
+		const filePath = join(dir, `${legacyCell.id}.json`);
+		await writeFile(filePath, JSON.stringify(legacyCell, null, 2), "utf-8");
+
+		const cells = await loadMemCells(dir);
+		const loaded = cells.find((c) => c.id === "mc_legacy000001");
+		expect(loaded).toBeDefined();
+		expect(loaded?.checksum).toBeDefined();
+		expect(loaded?.checksum).toMatch(/^[0-9a-f]{64}$/);
+		expect(verifyChecksum(loaded as MemCell)).toBe(true);
 	});
 });

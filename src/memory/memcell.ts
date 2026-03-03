@@ -7,7 +7,7 @@
  * MemCells are persisted as individual JSON files in a directory.
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -31,6 +31,8 @@ export interface MemCell {
 	timestamp: string;
 	/** Optional forward-looking intent with an expiration date. */
 	foresight?: Foresight;
+	/** SHA-256 checksum of canonical content for integrity verification. */
+	checksum: string;
 }
 
 export interface CreateMemCellInput {
@@ -38,6 +40,30 @@ export interface CreateMemCellInput {
 	facts: string[];
 	tags: string[];
 	foresight?: Foresight;
+}
+
+/**
+ * Compute a SHA-256 checksum of the canonical content of a MemCell.
+ *
+ * The canonical form sorts `facts` and `tags` to ensure deterministic hashing
+ * regardless of insertion order.
+ */
+export function computeChecksum(cell: { episode: string; facts: string[]; tags: string[] }): string {
+	const canonical = JSON.stringify({
+		episode: cell.episode,
+		facts: [...cell.facts].sort(),
+		tags: [...cell.tags].sort(),
+	});
+	return createHash("sha256").update(canonical).digest("hex");
+}
+
+/**
+ * Verify that a MemCell's checksum matches its current content.
+ *
+ * Returns `true` if the cell has not been tampered with.
+ */
+export function verifyChecksum(cell: MemCell): boolean {
+	return cell.checksum === computeChecksum(cell);
 }
 
 /**
@@ -51,6 +77,7 @@ export async function createMemCell(dir: string, input: CreateMemCellInput): Pro
 		facts: input.facts,
 		tags: input.tags,
 		timestamp: new Date().toISOString(),
+		checksum: "", // placeholder — computed below
 	};
 
 	if (input.foresight) {
@@ -59,6 +86,8 @@ export async function createMemCell(dir: string, input: CreateMemCellInput): Pro
 			expires: input.foresight.expires,
 		};
 	}
+
+	cell.checksum = computeChecksum(cell);
 
 	const filePath = join(dir, `${id}.json`);
 	await writeFile(filePath, JSON.stringify(cell, null, 2), "utf-8");
@@ -82,6 +111,16 @@ export async function loadMemCells(dir: string): Promise<MemCell[]> {
 	for (const file of jsonFiles) {
 		const raw = await readFile(join(dir, file), "utf-8");
 		const cell: MemCell = JSON.parse(raw);
+
+		// Integrity check — verify checksum before trusting cell content
+		if (!cell.checksum) {
+			// Legacy cell without checksum — backfill it
+			cell.checksum = computeChecksum(cell);
+		} else if (!verifyChecksum(cell)) {
+			// Tampered cell — skip it entirely
+			console.error(`[kodo] MemCell ${cell.id} checksum mismatch — possible tampering`);
+			continue;
+		}
 
 		// Strip expired foresight
 		if (cell.foresight) {
