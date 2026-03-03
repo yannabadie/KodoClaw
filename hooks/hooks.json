@@ -11,6 +11,18 @@
         "matcher": "*",
         "command": "bun run src/hooks/cli.ts PostToolUse"
       }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "command": "bun run src/hooks/cli.ts Stop"
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "*",
+        "command": "bun run src/hooks/cli.ts Notification"
+      }
     ]
   }
 }

@@ -34,7 +34,53 @@ const INJECTION_MARKERS: readonly string[] = [
 	"act as root",
 	"execute the following",
 	"base64 encode and send",
+
+	// Anthropic-specific control tokens
+	"\nHuman:",
+	"\nAssistant:",
+	"</s>",
+
+	// XML/HTML control tags used in system prompts
+	"<system>",
+	"</system>",
+	"<human>",
+	"<assistant>",
+	"<tool_use>",
+	"<antthinking>",
+
+	// Additional prompt injection phrases
+	"override your instructions",
+	"forget everything above",
+	"new system prompt",
+	"jailbreak",
+	"do anything now",
+	"developer mode",
 ];
+
+// ---------------------------------------------------------------------------
+// Unicode homoglyph normalization
+// ---------------------------------------------------------------------------
+
+/** Normalize common Unicode homoglyphs to ASCII equivalents */
+function normalizeHomoglyphs(text: string): string {
+	const homoglyphs: Record<string, string> = {
+		"\u0430": "a", // Cyrillic а → Latin a
+		"\u043E": "o", // Cyrillic о → Latin o
+		"\u0435": "e", // Cyrillic е → Latin e
+		"\u0440": "p", // Cyrillic р → Latin p
+		"\u0441": "c", // Cyrillic с → Latin c
+		"\u0443": "y", // Cyrillic у → Latin y
+		"\u0445": "x", // Cyrillic х → Latin x
+		"\u0456": "i", // Cyrillic і → Latin i
+		"\u0455": "s", // Cyrillic ѕ → Latin s
+		"\u04BB": "h", // Cyrillic һ → Latin h
+	};
+	let result = text;
+	for (const [cyrillic, latin] of Object.entries(homoglyphs)) {
+		result = result.replaceAll(cyrillic, latin);
+	}
+	return result;
+}
 
 // ---------------------------------------------------------------------------
 // Aho-Corasick automaton
@@ -119,7 +165,8 @@ const automaton = buildAutomaton(INJECTION_MARKERS);
  */
 export function scanForInjection(text: string): InjectionResult {
 	const { nodes, patterns } = automaton;
-	const lower = text.toLowerCase();
+	const normalized = normalizeHomoglyphs(text);
+	const lower = normalized.toLowerCase();
 
 	const seen = new Set<number>();
 	const matches: string[] = [];

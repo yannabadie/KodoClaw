@@ -4,11 +4,18 @@
  * Usage: echo '{"tool":"read","params":{}}' | bun run src/hooks/cli.ts PreToolUse
  */
 import { handlePostToolUse, handlePreToolUse } from "../plugin";
+import { handleNotification } from "./notification";
+import { handleStop } from "./stop";
 
-type HookType = "PreToolUse" | "PostToolUse";
+type HookType = "PreToolUse" | "PostToolUse" | "Stop" | "Notification";
 
 function isValidHookType(value: string): value is HookType {
-	return value === "PreToolUse" || value === "PostToolUse";
+	return (
+		value === "PreToolUse" ||
+		value === "PostToolUse" ||
+		value === "Stop" ||
+		value === "Notification"
+	);
 }
 
 async function readStdin(): Promise<string> {
@@ -22,7 +29,9 @@ async function readStdin(): Promise<string> {
 async function main(): Promise<void> {
 	const hookType = process.argv[2];
 	if (!hookType) {
-		process.stderr.write("Usage: bun run src/hooks/cli.ts <PreToolUse|PostToolUse>\n");
+		process.stderr.write(
+			"Usage: bun run src/hooks/cli.ts <PreToolUse|PostToolUse|Stop|Notification>\n",
+		);
 		process.exit(1);
 	}
 
@@ -33,6 +42,7 @@ async function main(): Promise<void> {
 
 	const raw = await readStdin();
 	const payload: unknown = JSON.parse(raw);
+	const baseDir = process.cwd();
 
 	let result: unknown;
 	switch (hookType) {
@@ -41,6 +51,18 @@ async function main(): Promise<void> {
 			break;
 		case "PostToolUse":
 			result = handlePostToolUse(payload as Parameters<typeof handlePostToolUse>[0]);
+			break;
+		case "Stop":
+			result = await handleStop(
+				payload as Parameters<typeof handleStop>[0],
+				baseDir,
+			);
+			break;
+		case "Notification":
+			result = await handleNotification(
+				payload as Parameters<typeof handleNotification>[0],
+				baseDir,
+			);
 			break;
 	}
 
