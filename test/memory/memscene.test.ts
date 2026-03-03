@@ -11,6 +11,7 @@ const makeCell = (id: string, tags: string[], facts: string[]): MemCell => ({
 	facts,
 	tags,
 	timestamp: new Date().toISOString(),
+	checksum: "",
 });
 
 describe("MemScene", () => {
@@ -50,5 +51,32 @@ describe("MemScene", () => {
 		await consolidate(dir, cell2, scenes1);
 		const scenes2 = await loadMemScenes(dir);
 		expect(scenes2.length).toBe(2);
+	});
+
+	test("generates unique scene IDs", async () => {
+		const ids = new Set<string>();
+		for (let i = 0; i < 100; i++) {
+			const cell = makeCell(`mc_${i}`, ["unique", `tag_${i}`], [`Fact ${i}`]);
+			await consolidate(dir, cell, []);
+		}
+		const scenes = await loadMemScenes(dir);
+		for (const scene of scenes) {
+			ids.add(scene.id);
+		}
+		expect(ids.size).toBe(scenes.length);
+		expect(ids.size).toBe(100);
+	});
+
+	test("consolidate produces meaningful summary", async () => {
+		const cell1 = makeCell("mc_1", ["auth", "jwt"], ["Uses JWT tokens"]);
+		await consolidate(dir, cell1, []);
+		const scenes1 = await loadMemScenes(dir);
+		const cell2 = makeCell("mc_2", ["auth", "session"], ["Added session auth"]);
+		await consolidate(dir, cell2, scenes1);
+		const scenes2 = await loadMemScenes(dir);
+		expect(scenes2.length).toBe(1);
+		const scene = scenes2[0]!;
+		expect(scene.summary).toContain("Uses JWT tokens");
+		expect(scene.summary).toContain("Added session auth");
 	});
 });
