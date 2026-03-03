@@ -1,0 +1,21 @@
+{
+  "name": "kodo-cli",
+  "version": "0.1.0",
+  "description": "Claude Code plugin — intelligent memory, security, planning, RAG",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "check": "biome check src/ test/",
+    "check:fix": "biome check --write src/ test/",
+    "test": "bun test",
+    "build": "bun build src/index.ts --outdir dist --target node"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^1.2.0",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/bun": "latest"
+  }
+}
