@@ -31,7 +31,7 @@ export class Vault {
 			key = hexToBytes(hex.trim());
 		} catch {
 			key = randomBytes(KEY_LENGTH);
-			await writeFile(keyPath, bytesToHex(key), "utf-8");
+			await writeFile(keyPath, bytesToHex(key), { encoding: "utf-8", mode: 0o600 });
 		}
 
 		return new Vault(dir, key);

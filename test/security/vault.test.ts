@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Vault } from "../../src/security/vault";
@@ -53,5 +53,13 @@ describe("Vault", () => {
 		await vault.set("persistent", "data");
 		const vault2 = await Vault.init(dir);
 		expect(await vault2.get("persistent")).toBe("data");
+	});
+
+	test("vault key file has owner-only permissions", async () => {
+		const keyPath = join(dir, ".vault_key");
+		const st = await stat(keyPath);
+		if (process.platform !== "win32") {
+			expect(st.mode & 0o777).toBe(0o600);
+		}
 	});
 });
