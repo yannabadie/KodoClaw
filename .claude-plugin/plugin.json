@@ -1,0 +1,6 @@
+{
+  "name": "kodo",
+  "version": "0.1.0",
+  "description": "Intelligent memory, security, planning & RAG for Claude Code",
+  "entryPoint": "src/index.ts"
+}

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "command": "bun run src/plugin.ts preToolUse"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "command": "bun run src/plugin.ts postToolUse"
+      }
+    ]
+  }
+}
