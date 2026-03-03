@@ -66,7 +66,14 @@ export class UserProfile {
 	 * Return a shallow copy of all non-expired temporary states.
 	 */
 	getTemporaryStates(): Record<string, TemporaryState> {
-		return { ...this.temporaryStates };
+		const now = new Date().toISOString().slice(0, 10);
+		const active: Record<string, TemporaryState> = {};
+		for (const [key, state] of Object.entries(this.temporaryStates)) {
+			if (state.expires > now) {
+				active[key] = { ...state };
+			}
+		}
+		return active;
 	}
 
 	/**
@@ -115,14 +122,15 @@ export class UserProfile {
 			}
 		}
 
-		this.purgeExpired();
-		const tempKeys = Object.keys(this.temporaryStates);
-		if (tempKeys.length > 0) {
+		// Non-mutating filter for expired states
+		const now = new Date().toISOString().slice(0, 10);
+		const activeStates = Object.entries(this.temporaryStates).filter(
+			([, state]) => state.expires > now,
+		);
+		if (activeStates.length > 0) {
 			if (lines.length > 0) lines.push("");
 			lines.push("Temporary States:");
-			for (const key of tempKeys) {
-				const state = this.temporaryStates[key];
-				if (!state) continue;
+			for (const [key, state] of activeStates) {
 				lines.push(`- ${key}: ${state.value} (expires ${state.expires})`);
 			}
 		}

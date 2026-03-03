@@ -28,8 +28,12 @@ export class MilestoneLibrary {
 		const plans: ArchivedPlan[] = [];
 		for (const f of files) {
 			if (!f.endsWith(".json")) continue;
-			const raw = await readFile(join(this.dir, f), "utf-8");
-			plans.push(JSON.parse(raw));
+			try {
+				const raw = await readFile(join(this.dir, f), "utf-8");
+				plans.push(JSON.parse(raw) as ArchivedPlan);
+			} catch {
+				// Skip malformed files
+			}
 		}
 		return plans;
 	}

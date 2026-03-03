@@ -1,6 +1,6 @@
 // test/planning/library.test.ts
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MilestoneLibrary } from "../../src/planning/library";
@@ -32,6 +32,12 @@ describe("MilestoneLibrary", () => {
 		const all = await lib.list();
 		expect(all.length).toBe(1);
 		expect(all[0]?.task).toBe("Add OAuth2");
+	});
+
+	test("list() skips malformed JSON files", async () => {
+		await writeFile(join(dir, "bad.json"), "not valid json{{{");
+		const plans = await lib.list();
+		expect(plans.length).toBe(0);
 	});
 
 	test("finds similar past plans", async () => {

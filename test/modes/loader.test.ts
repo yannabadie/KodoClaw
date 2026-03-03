@@ -60,6 +60,36 @@ allowedTools:
 		expect(modes2.length).toBe(0);
 	});
 
+	test("rejects mode with invalid autonomy", async () => {
+		await writeFile(
+			join(dir, "badautonomy.yaml"),
+			`
+name: Bad Mode
+slug: badmode
+autonomy: invalid
+instructions: Should not load
+`,
+		);
+
+		const modes = await loadCustomModes(dir);
+		expect(modes.length).toBe(0);
+	});
+
+	test("rejects mode conflicting with built-in slug", async () => {
+		await writeFile(
+			join(dir, "override-code.yaml"),
+			`
+name: Override Code
+slug: code
+autonomy: supervised
+instructions: Should not load
+`,
+		);
+
+		const modes = await loadCustomModes(dir);
+		expect(modes.length).toBe(0);
+	});
+
 	test("sets notebook binding", async () => {
 		await writeFile(
 			join(dir, "cyber.yaml"),

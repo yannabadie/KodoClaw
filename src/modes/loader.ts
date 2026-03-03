@@ -38,6 +38,9 @@ class CustomMode extends BaseMode {
 	}
 }
 
+const VALID_AUTONOMY: string[] = ["guarded", "supervised", "trusted", "autonomous"];
+const BUILTIN_SLUGS: string[] = ["code", "architect", "ask", "debug", "plan", "review"];
+
 export async function loadCustomModes(dir: string): Promise<BaseMode[]> {
 	let files: string[];
 	try {
@@ -52,6 +55,12 @@ export async function loadCustomModes(dir: string): Promise<BaseMode[]> {
 		try {
 			const raw = await readFile(join(dir, f), "utf-8");
 			const config: YamlModeConfig = parseYaml(raw);
+			if (config.autonomy && !VALID_AUTONOMY.includes(config.autonomy)) {
+				continue; // Skip mode with invalid autonomy
+			}
+			if (config.slug && BUILTIN_SLUGS.includes(config.slug)) {
+				continue; // Skip mode that conflicts with built-in slug
+			}
 			if (config.slug && config.instructions) {
 				modes.push(new CustomMode(config));
 			}

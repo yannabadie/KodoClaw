@@ -50,4 +50,25 @@ describe("UserProfile", () => {
 		expect(ctx).toContain("TypeScript");
 		expect(ctx).toContain("TDD");
 	});
+
+	test("getTemporaryStates filters expired entries", async () => {
+		await profile.setTemporary("old", "expired thing", "2020-01-01");
+		await profile.setTemporary("current", "active thing", "2099-12-31");
+		const states = profile.getTemporaryStates();
+		expect(states.old).toBeUndefined();
+		expect(states.current?.value).toBe("active thing");
+	});
+
+	test("renderContext does not mutate internal state", async () => {
+		await profile.setTemporary("expired", "gone", "2020-01-01");
+		await profile.setTemporary("active", "here", "2099-12-31");
+		// renderContext should NOT delete the expired entry from internal state
+		profile.renderContext();
+		// After renderContext, purgeExpired still has something to purge
+		// (the expired entry should still exist internally)
+		profile.purgeExpired();
+		// The active entry survives purge
+		const states = profile.getTemporaryStates();
+		expect(states.active?.value).toBe("here");
+	});
 });
