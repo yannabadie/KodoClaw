@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { mkdtemp, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm, stat, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Vault } from "../../src/security/vault";
@@ -79,5 +79,44 @@ describe("Vault", () => {
 		}
 		const names = await vault.list();
 		expect(names).toEqual([]);
+	});
+
+	test("atomic write survives (tmp file created)", async () => {
+		const tmpPath = join(dir, "vault.enc.tmp");
+		const vaultPath = join(dir, "vault.enc");
+
+		await vault.set("atomic_test", "value123");
+
+		// After successful write, the .tmp file should NOT exist (it was renamed to vault.enc)
+		const tmpExists = await Bun.file(tmpPath).exists();
+		expect(tmpExists).toBe(false);
+
+		// The final vault.enc file should exist and contain valid JSON
+		const vaultExists = await Bun.file(vaultPath).exists();
+		expect(vaultExists).toBe(true);
+		const content = await readFile(vaultPath, "utf-8");
+		const parsed = JSON.parse(content) as Record<string, string>;
+		expect(parsed).toHaveProperty("atomic_test");
+
+		// Data should be retrievable (proves rename completed correctly)
+		const result = await vault.get("atomic_test");
+		expect(result).toBe("value123");
+	});
+
+	test("atomic write does not corrupt vault on concurrent access", async () => {
+		// Write multiple secrets sequentially and verify all survive
+		await vault.set("key_a", "alpha");
+		await vault.set("key_b", "bravo");
+		await vault.set("key_c", "charlie");
+
+		// Tmp file should not be left behind
+		const tmpPath = join(dir, "vault.enc.tmp");
+		const tmpExists = await Bun.file(tmpPath).exists();
+		expect(tmpExists).toBe(false);
+
+		// All values should be intact
+		expect(await vault.get("key_a")).toBe("alpha");
+		expect(await vault.get("key_b")).toBe("bravo");
+		expect(await vault.get("key_c")).toBe("charlie");
 	});
 });

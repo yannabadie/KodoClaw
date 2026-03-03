@@ -112,7 +112,9 @@ export class BehaviorBaseline {
 		}
 
 		const criticalMultiplier = 2;
-		const shouldTerminate = anomalies.some(a => a.currentValue >= a.threshold * criticalMultiplier);
+		const shouldTerminate = anomalies.some(
+			(a) => a.currentValue >= a.threshold * criticalMultiplier,
+		);
 
 		return {
 			anomalies,

@@ -35,7 +35,7 @@ describe("classifyShellRisk", () => {
 		expect(classifyShellRisk("python3 --command 'print(1)'")).toBe("critical");
 	});
 	test("classifies node -e as critical", () => {
-		expect(classifyShellRisk("node -e 'require(\"child_process\").exec(\"ls\")'")).toBe("critical");
+		expect(classifyShellRisk('node -e \'require("child_process").exec("ls")\'')).toBe("critical");
 	});
 	test("classifies docker run as high", () => {
 		expect(classifyShellRisk("docker run -it ubuntu bash")).toBe("high");
