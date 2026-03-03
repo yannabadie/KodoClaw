@@ -12,7 +12,7 @@ describe("UserProfile", () => {
 		profile = await UserProfile.load(join(dir, "profile.json"));
 	});
 	afterEach(async () => {
-		await rm(dir, { recursive: true });
+		await rm(dir, { recursive: true, force: true });
 	});
 
 	test("initializes with empty traits", () => {
@@ -43,9 +43,9 @@ describe("UserProfile", () => {
 		expect(profile2.getStableTraits().lang).toBe("French");
 	});
 
-	test("renders context string", () => {
-		profile.setTrait("stack", "TypeScript");
-		profile.setTrait("style", "TDD, small commits");
+	test("renders context string", async () => {
+		await profile.setTrait("stack", "TypeScript");
+		await profile.setTrait("style", "TDD, small commits");
 		const ctx = profile.renderContext();
 		expect(ctx).toContain("TypeScript");
 		expect(ctx).toContain("TDD");
