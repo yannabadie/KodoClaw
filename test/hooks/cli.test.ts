@@ -44,8 +44,16 @@ async function runCliRaw(
 	return { stdout, stderr, exitCode };
 }
 
+interface HookSpecificOutput {
+	hookSpecificOutput: {
+		hookEventName: string;
+		permissionDecision: string;
+		permissionDecisionReason: string;
+	};
+}
+
 describe("hooks CLI wrapper", () => {
-	test("PreToolUse returns allow for safe read", async () => {
+	test("PreToolUse returns hookSpecificOutput with allow for safe read", async () => {
 		const { stdout, exitCode } = await runCli("PreToolUse", {
 			tool: "read",
 			params: { file_path: "src/main.ts" },
@@ -53,11 +61,14 @@ describe("hooks CLI wrapper", () => {
 			autonomy: "trusted",
 		});
 		expect(exitCode).toBe(0);
-		const result = JSON.parse(stdout) as { decision: string };
-		expect(result.decision).toBe("allow");
+		const result = JSON.parse(stdout) as HookSpecificOutput;
+		expect(result.hookSpecificOutput).toBeDefined();
+		expect(result.hookSpecificOutput.hookEventName).toBe("PreToolUse");
+		expect(result.hookSpecificOutput.permissionDecision).toBe("allow");
+		expect(result.hookSpecificOutput.permissionDecisionReason).toBe("");
 	});
 
-	test("PreToolUse returns block for sensitive path", async () => {
+	test("PreToolUse returns hookSpecificOutput with deny for sensitive path", async () => {
 		const { stdout, exitCode } = await runCli("PreToolUse", {
 			tool: "read",
 			params: { file_path: ".env" },
@@ -65,9 +76,23 @@ describe("hooks CLI wrapper", () => {
 			autonomy: "trusted",
 		});
 		expect(exitCode).toBe(0);
-		const result = JSON.parse(stdout) as { decision: string; reason?: string };
-		expect(result.decision).toBe("block");
-		expect(result.reason).toContain("sensitive");
+		const result = JSON.parse(stdout) as HookSpecificOutput;
+		expect(result.hookSpecificOutput).toBeDefined();
+		expect(result.hookSpecificOutput.hookEventName).toBe("PreToolUse");
+		expect(result.hookSpecificOutput.permissionDecision).toBe("deny");
+		expect(result.hookSpecificOutput.permissionDecisionReason).toContain("sensitive");
+	});
+
+	test("PreToolUse maps block to deny in hookSpecificOutput", async () => {
+		const { stdout, exitCode } = await runCli("PreToolUse", {
+			tool: "read",
+			params: { file_path: "/home/user/.ssh/id_rsa" },
+			mode: "code",
+			autonomy: "trusted",
+		});
+		expect(exitCode).toBe(0);
+		const result = JSON.parse(stdout) as HookSpecificOutput;
+		expect(result.hookSpecificOutput.permissionDecision).toBe("deny");
 	});
 
 	test("PostToolUse scans output and returns injection score", async () => {
@@ -136,5 +161,26 @@ describe("hooks CLI wrapper", () => {
 		const { stderr, exitCode } = await runCli("PostToolUse", { output: 123 });
 		expect(exitCode).toBe(2);
 		expect(stderr).toContain("Invalid PostToolUse payload");
+	});
+
+	test("PreCompact hook returns memoryPersisted", async () => {
+		const { stdout, exitCode } = await runCli("PreCompact", {
+			trigger: "auto",
+			sessionId: "sess_compact_001",
+			contextTokens: 100000,
+		});
+		expect(exitCode).toBe(0);
+		const result = JSON.parse(stdout) as { memoryPersisted: boolean };
+		expect(result.memoryPersisted).toBe(true);
+	});
+
+	test("SessionEnd hook returns auditFlushed", async () => {
+		const { stdout, exitCode } = await runCli("SessionEnd", {
+			sessionId: "sess_end_001",
+			reason: "clear",
+		});
+		expect(exitCode).toBe(0);
+		const result = JSON.parse(stdout) as { auditFlushed: boolean };
+		expect(result.auditFlushed).toBe(true);
 	});
 });

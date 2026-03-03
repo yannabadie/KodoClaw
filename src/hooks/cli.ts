@@ -5,9 +5,17 @@
  */
 import { handlePostToolUse, handlePreToolUse } from "../plugin";
 import { handleNotification } from "./notification";
+import { handlePreCompact } from "./precompact";
+import { handleSessionEnd } from "./session-end";
 import { handleStop } from "./stop";
 
-type HookType = "PreToolUse" | "PostToolUse" | "Stop" | "Notification";
+type HookType =
+	| "PreToolUse"
+	| "PostToolUse"
+	| "Stop"
+	| "Notification"
+	| "PreCompact"
+	| "SessionEnd";
 
 function validatePreToolInput(v: unknown): v is Parameters<typeof handlePreToolUse>[0] {
 	if (typeof v !== "object" || v === null) return false;
@@ -31,7 +39,9 @@ function isValidHookType(value: string): value is HookType {
 		value === "PreToolUse" ||
 		value === "PostToolUse" ||
 		value === "Stop" ||
-		value === "Notification"
+		value === "Notification" ||
+		value === "PreCompact" ||
+		value === "SessionEnd"
 	);
 }
 
@@ -47,7 +57,7 @@ async function main(): Promise<void> {
 	const hookType = process.argv[2];
 	if (!hookType) {
 		process.stderr.write(
-			"Usage: bun run src/hooks/cli.ts <PreToolUse|PostToolUse|Stop|Notification>\n",
+			"Usage: bun run src/hooks/cli.ts <PreToolUse|PostToolUse|Stop|Notification|PreCompact|SessionEnd>\n",
 		);
 		process.exit(1);
 	}
@@ -63,13 +73,26 @@ async function main(): Promise<void> {
 
 	let result: unknown;
 	switch (hookType) {
-		case "PreToolUse":
+		case "PreToolUse": {
 			if (!validatePreToolInput(payload)) {
 				process.stderr.write("Invalid PreToolUse payload\n");
 				process.exit(2);
 			}
-			result = handlePreToolUse(payload);
+			const preResult = handlePreToolUse(payload);
+			result = {
+				hookSpecificOutput: {
+					hookEventName: "PreToolUse",
+					permissionDecision:
+						preResult.decision === "block"
+							? "deny"
+							: preResult.decision === "confirm"
+								? "ask"
+								: "allow",
+					permissionDecisionReason: preResult.reason ?? "",
+				},
+			};
 			break;
+		}
 		case "PostToolUse":
 			if (!validatePostToolInput(payload)) {
 				process.stderr.write("Invalid PostToolUse payload\n");
@@ -85,6 +108,12 @@ async function main(): Promise<void> {
 				payload as Parameters<typeof handleNotification>[0],
 				baseDir,
 			);
+			break;
+		case "PreCompact":
+			result = await handlePreCompact(payload as Parameters<typeof handlePreCompact>[0], baseDir);
+			break;
+		case "SessionEnd":
+			result = await handleSessionEnd(payload as Parameters<typeof handleSessionEnd>[0], baseDir);
 			break;
 	}
 

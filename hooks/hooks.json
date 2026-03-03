@@ -23,6 +23,18 @@
         "matcher": "*",
         "command": "bun run src/hooks/cli.ts Notification"
       }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "command": "bun run src/hooks/cli.ts PreCompact"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "command": "bun run src/hooks/cli.ts SessionEnd"
+      }
     ]
   }
 }
