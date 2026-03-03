@@ -106,4 +106,14 @@ describe("handlePostToolUse", () => {
 		});
 		expect(result.sanitizedOutput).toContain("[REDACTED]");
 	});
+
+	test("returns empty outputThreats for clean output", () => {
+		const result = handlePostToolUse({ output: "All tests passed." });
+		expect(result.outputThreats).toEqual([]);
+	});
+
+	test("detects dangerous patterns in output", () => {
+		const result = handlePostToolUse({ output: '<script>alert("xss")</script>' });
+		expect(result.outputThreats).toContain("xss_script_tag");
+	});
 });

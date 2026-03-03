@@ -1,6 +1,7 @@
 import { sanitize } from "./context/sanitizer";
 import { isSensitivePath } from "./security/blocklist";
 import { scanForInjection } from "./security/injection";
+import { guardOutput } from "./security/output-guard";
 import {
 	type AutonomyLevel,
 	type PolicyDecision,
@@ -23,6 +24,7 @@ export interface PreToolResult {
 export interface PostToolResult {
 	injectionScore: number;
 	sanitizedOutput: string;
+	outputThreats: string[];
 }
 
 export function extractPaths(tool: string, params: Record<string, unknown>): string[] {
@@ -91,8 +93,10 @@ export function handlePreToolUse(input: HookInput): PreToolResult {
 export function handlePostToolUse(input: { output: string }): PostToolResult {
 	const injection = scanForInjection(input.output);
 	const sanitized = sanitize(input.output);
+	const guard = guardOutput(input.output);
 	return {
 		injectionScore: injection.score,
 		sanitizedOutput: sanitized.content,
+		outputThreats: guard.threats,
 	};
 }
