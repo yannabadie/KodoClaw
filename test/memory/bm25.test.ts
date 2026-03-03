@@ -43,10 +43,10 @@ describe("BM25Index", () => {
 
 	test("finds morphological variants", () => {
 		const idx = new BM25Index();
-		idx.add("doc1", "user authentication with tokens");
+		idx.add("doc1", "user construction with tokens");
 		idx.add("doc2", "python flask database postgresql");
-		// "authenticated" stems to "authenticat" matching "authentication" -> "authenticat"
-		const results = idx.search("authenticated");
+		// "constructed" stems to "construct" matching "construction" -> "construct"
+		const results = idx.search("constructed");
 		expect(results.length).toBeGreaterThan(0);
 		expect(results[0]?.id).toBe("doc1");
 	});

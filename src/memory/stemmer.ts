@@ -104,9 +104,9 @@ export function stem(word: string): string {
 	else if (w.endsWith("sses")) w = w.slice(0, -2);
 	else if (w.endsWith("ness")) w = w.slice(0, -4);
 	else if (w.endsWith("ment")) w = w.slice(0, -4);
+	else if (w.endsWith("ation")) w = `${w.slice(0, -5)}ate`;
 	else if (w.endsWith("tion")) w = `${w.slice(0, -4)}t`;
 	else if (w.endsWith("sion")) w = `${w.slice(0, -4)}s`;
-	else if (w.endsWith("ation")) w = `${w.slice(0, -5)}ate`;
 	else if (w.endsWith("ling") && w.length > 4) w = w.slice(0, -3);
 	else if (w.endsWith("ating")) w = `${w.slice(0, -3)}e`;
 	else if (w.endsWith("ing") && w.length > 5) w = w.slice(0, -3);

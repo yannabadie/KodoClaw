@@ -6,8 +6,12 @@ describe("stem", () => {
 		expect(stem("running")).toBe("runn");
 	});
 
-	test("stems -tion suffix", () => {
-		expect(stem("authentication")).toBe("authenticat");
+	test("stems -ation words correctly", () => {
+		expect(stem("automation")).toBe("automate");
+	});
+
+	test("stems -tion words correctly", () => {
+		expect(stem("construction")).toBe("construct");
 	});
 
 	test("stems -ed suffix", () => {

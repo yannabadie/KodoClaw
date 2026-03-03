@@ -54,6 +54,11 @@ export class BehaviorBaseline {
 	 */
 	record(event: BehaviorEvent): void {
 		this.events.push(event);
+		// Prune events outside the analysis window to prevent unbounded growth
+		const cutoff = Date.now() - ANOMALY_CONFIG.windowMs;
+		while (this.events.length > 0 && (this.events[0]?.timestamp ?? 0) < cutoff) {
+			this.events.shift();
+		}
 	}
 
 	/**

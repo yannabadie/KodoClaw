@@ -135,6 +135,22 @@ describe("BehaviorBaseline", () => {
 		expect(report.shouldTerminate).toBe(false);
 	});
 
+	test("prunes stale events from memory", () => {
+		const baseline = new BehaviorBaseline();
+		const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+
+		// Record 10 old events that are outside the 5-minute window
+		for (let i = 0; i < 10; i++) {
+			baseline.record(makeEvent({ timestamp: tenMinutesAgo }));
+		}
+
+		// Record 1 current event — pruning should remove the old ones
+		baseline.record(makeEvent());
+
+		// After pruning, only the current event should remain
+		expect(baseline.recentCount).toBe(1);
+	});
+
 	test("reset clears all events", () => {
 		const baseline = new BehaviorBaseline();
 		for (let i = 0; i < 51; i++) {

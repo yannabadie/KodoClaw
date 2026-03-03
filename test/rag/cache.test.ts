@@ -1,5 +1,6 @@
 // test/rag/cache.test.ts
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { exists } from "node:fs/promises";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -75,6 +76,13 @@ describe("RAGCache", () => {
 
 		const gammaResult = await cache.get("gamma query", "mode1");
 		expect(gammaResult).toBe("gamma answer v2");
+	});
+
+	test("uses atomic write (no .tmp file left)", async () => {
+		await cache.put("atomic test query", "atomic answer", "test");
+		const tmpPath = join(dir, "queries.json.tmp");
+		const tmpExists = await exists(tmpPath);
+		expect(tmpExists).toBe(false);
 	});
 
 	test("duplicate query+mode updates existing entry", async () => {

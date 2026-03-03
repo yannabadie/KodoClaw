@@ -1,6 +1,6 @@
 // src/rag/cache.ts
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { BM25Index } from "../memory/bm25";
 
@@ -97,6 +97,8 @@ export class RAGCache {
 
 	private async save(): Promise<void> {
 		const arr = Array.from(this.entries.values());
-		await writeFile(this.filePath, JSON.stringify(arr, null, 2), "utf-8");
+		const tmp = `${this.filePath}.tmp`;
+		await writeFile(tmp, JSON.stringify(arr, null, 2), "utf-8");
+		await rename(tmp, this.filePath);
 	}
 }
