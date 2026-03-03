@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kodo Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #e2e8f0;
+      --text-dim: #94a3b8;
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --success: #22c55e;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --border: #334155;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .logo-accent { color: var(--accent); }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .conn-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      display: inline-block;
+    }
+    .conn-dot.disconnected { background: var(--danger); }
+    .conn-label { font-size: 13px; color: var(--text-dim); }
+    .btn-sm {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-sm:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    /* Main grid */
+    .main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+    }
+    .card-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      background: var(--accent-glow);
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-accent { background: var(--accent-glow); color: var(--accent); }
+    .badge-success { background: rgba(34,197,94,0.15); color: var(--success); }
+    .badge-warn { background: rgba(245,158,11,0.15); color: var(--warn); }
+
+    /* Status panel */
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .status-row:last-child { border-bottom: none; }
+    .status-label { font-size: 14px; color: var(--text-dim); }
+    .status-value { font-size: 14px; font-weight: 600; }
+
+    /* Progress bar */
+    .progress-container { margin-top: 8px; }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--bg);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+    .progress-text {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .progress-big {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    /* Memory */
+    .memory-count {
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .memory-sub {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-top: 8px;
+    }
+
+    /* Cost */
+    .cost-main {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .cost-detail {
+      display: flex;
+      gap: 24px;
+      margin-top: 12px;
+    }
+    .cost-item { font-size: 14px; }
+    .cost-item-label { color: var(--text-dim); }
+    .cost-item-value { font-weight: 600; margin-top: 2px; }
+
+    /* Audit log */
+    .audit-list {
+      max-height: 260px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .audit-entry {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .audit-entry:last-child { border-bottom: none; }
+    .audit-time {
+      font-size: 11px;
+      color: var(--text-dim);
+      font-family: monospace;
+    }
+    .audit-msg { margin-top: 2px; }
+    .audit-empty {
+      color: var(--text-dim);
+      font-size: 14px;
+      text-align: center;
+      padding: 24px 0;
+    }
+
+    /* Pairing overlay */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    .overlay.hidden { display: none; }
+    .pairing-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      max-width: 440px;
+      width: 90%;
+      text-align: center;
+    }
+    .pairing-title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .pairing-desc {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+    .pairing-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .pairing-input:focus { border-color: var(--accent); }
+    .pairing-btn {
+      margin-top: 16px;
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .pairing-btn:hover { opacity: 0.9; }
+    .pairing-error {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 12px;
+      min-height: 18px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .main {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+      .header { padding: 12px 16px; }
+      .logo { font-size: 20px; }
+    }
+
+    /* Scrollbar for audit */
+    .audit-list::-webkit-scrollbar { width: 4px; }
+    .audit-list::-webkit-scrollbar-track { background: transparent; }
+    .audit-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* Fade-in animation */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .card { animation: fadeIn 0.3s ease both; }
+    .card:nth-child(2) { animation-delay: 0.05s; }
+    .card:nth-child(3) { animation-delay: 0.1s; }
+    .card:nth-child(4) { animation-delay: 0.15s; }
+    .card:nth-child(5) { animation-delay: 0.2s; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-left">
+      <div class="logo"><span class="logo-accent">K</span>odo</div>
+      <span id="mode-badge" class="badge badge-accent">--</span>
+    </div>
+    <div class="header-right">
+      <span class="conn-dot" id="conn-dot"></span>
+      <span class="conn-label" id="conn-label">Connecting...</span>
+      <button class="btn-sm" id="btn-disconnect" title="Clear session and disconnect">Disconnect</button>
+    </div>
+  </header>
+
+  <main class="main" id="dashboard">
+    <!-- Status Card -->
+    <div class="card" id="card-status">
+      <div class="card-header">
+        <span class="card-title">Status</span>
+        <div class="card-icon">&#9881;</div>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Mode</span>
+        <span class="status-value" id="val-mode">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Autonomy</span>
+        <span class="status-value" id="val-autonomy">--</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Memories</span>
+        <span class="status-value" id="val-memory-count">--</span>
+      </div>
+    </div>
+
+    <!-- Plan Progress Card -->
+    <div class="card" id="card-plan">
+      <div class="card-header">
+        <span class="card-title">Plan Progress</span>
+        <div class="card-icon">&#9776;</div>
+      </div>
+      <div id="plan-content">
+        <div class="progress-big" id="val-plan-pct">--%</div>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="plan-fill" style="width:0%"></div>
+          </div>
+          <div class="progress-text">
+            <span id="val-plan-done">0 done</span>
+            <span id="val-plan-total">0 total</span>
+          </div>
+        </div>
+      </div>
+      <div id="plan-empty" style="display:none">
+        <p class="audit-empty">No active plan</p>
+      </div>
+    </div>
+
+    <!-- Memory Card -->
+    <div class="card" id="card-memory">
+      <div class="card-header">
+        <span class="card-title">Memory</span>
+        <div class="card-icon">&#128451;</div>
+      </div>
+      <div class="memory-count" id="val-memory-big">0</div>
+      <div class="memory-sub">stored memories</div>
+    </div>
+
+    <!-- Cost Tracker Card -->
+    <div class="card" id="card-cost">
+      <div class="card-header">
+        <span class="card-title">Cost Tracker</span>
+        <div class="card-icon">&#36;</div>
+      </div>
+      <div class="cost-detail">
+        <div class="cost-item">
+          <div class="cost-item-label">Session</div>
+          <div class="cost-item-value" id="val-session-cost">$0.00</div>
+        </div>
+        <div class="cost-item">
+          <div class="cost-item-label">Today</div>
+          <div class="cost-item-value" id="val-daily-cost">$0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audit Log Card -->
+    <div class="card" id="card-audit" style="grid-column: span 2;">
+      <div class="card-header">
+        <span class="card-title">Audit Log</span>
+        <div class="card-icon">&#128466;</div>
+      </div>
+      <div class="audit-list" id="audit-list">
+        <p class="audit-empty">No audit entries yet</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Pairing overlay -->
+  <div class="overlay" id="pairing-overlay">
+    <div class="pairing-box">
+      <div class="pairing-title">Pair with Kodo</div>
+      <p class="pairing-desc">Enter the pairing token shown in your terminal to connect this dashboard to your Kodo session.</p>
+      <input
+        type="text"
+        class="pairing-input"
+        id="pairing-token"
+        placeholder="Paste pairing token..."
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <button class="pairing-btn" id="pairing-submit">Connect</button>
+      <div class="pairing-error" id="pairing-error"></div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      "use strict";
+
+      // --- State ---
+      var SESSION_KEY = "kodo_session_token";
+      var refreshTimer = null;
+      var connected = false;
+
+      // --- DOM refs ---
+      var $ = function(id) { return document.getElementById(id); };
+      var overlay = $("pairing-overlay");
+      var tokenInput = $("pairing-token");
+      var submitBtn = $("pairing-submit");
+      var pairingError = $("pairing-error");
+      var connDot = $("conn-dot");
+      var connLabel = $("conn-label");
+      var disconnectBtn = $("btn-disconnect");
+
+      // --- Token management ---
+      function getToken() {
+        return localStorage.getItem(SESSION_KEY) || "";
+      }
+
+      function setToken(token) {
+        localStorage.setItem(SESSION_KEY, token);
+      }
+
+      function clearToken() {
+        localStorage.removeItem(SESSION_KEY);
+      }
+
+      // --- Pairing flow ---
+      function showPairing() {
+        overlay.classList.remove("hidden");
+        tokenInput.value = "";
+        pairingError.textContent = "";
+        tokenInput.focus();
+      }
+
+      function hidePairing() {
+        overlay.classList.add("hidden");
+      }
+
+      function handlePair() {
+        var token = tokenInput.value.trim();
+        if (!token) {
+          pairingError.textContent = "Please enter a pairing token.";
+          return;
+        }
+        pairingError.textContent = "";
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Connecting...";
+
+        apiFetch("/api/status", token)
+          .then(function() {
+            setToken(token);
+            hidePairing();
+            setConnected(true);
+            startRefresh();
+          })
+          .catch(function() {
+            pairingError.textContent = "Invalid or expired token. Please try again.";
+          })
+          .finally(function() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Connect";
+          });
+      }
+
+      submitBtn.addEventListener("click", handlePair);
+      tokenInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") handlePair();
+      });
+
+      disconnectBtn.addEventListener("click", function() {
+        clearToken();
+        stopRefresh();
+        setConnected(false);
+        showPairing();
+      });
+
+      // --- Connection indicator ---
+      function setConnected(state) {
+        connected = state;
+        if (state) {
+          connDot.classList.remove("disconnected");
+          connLabel.textContent = "Connected";
+        } else {
+          connDot.classList.add("disconnected");
+          connLabel.textContent = "Disconnected";
+        }
+      }
+
+      // --- API helper ---
+      function apiFetch(path, token) {
+        var t = token || getToken();
+        return fetch(path, {
+          headers: { "Authorization": "Bearer " + t }
+        }).then(function(res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        });
+      }
+
+      // --- Data refresh ---
+      function refreshAll() {
+        var token = getToken();
+        if (!token) return;
+
+        Promise.all([
+          apiFetch("/api/status", token).catch(function() { return null; }),
+          apiFetch("/api/cost", token).catch(function() { return null; }),
+          apiFetch("/api/audit", token).catch(function() { return null; })
+        ]).then(function(results) {
+          var status = results[0];
+          var cost = results[1];
+          var audit = results[2];
+
+          if (status) {
+            updateStatus(status);
+            setConnected(true);
+          } else {
+            setConnected(false);
+          }
+
+          if (cost) updateCost(cost);
+          if (audit) updateAudit(audit);
+        });
+      }
+
+      function updateStatus(data) {
+        $("val-mode").textContent = data.mode || "--";
+        $("val-autonomy").textContent = data.autonomy || "--";
+        $("val-memory-count").textContent = data.memoryCount != null ? data.memoryCount : "--";
+        $("mode-badge").textContent = data.mode || "--";
+
+        // Memory big number
+        $("val-memory-big").textContent = data.memoryCount != null ? data.memoryCount : 0;
+
+        // Plan progress
+        if (data.planProgress && data.planProgress.total > 0) {
+          var done = data.planProgress.done;
+          var total = data.planProgress.total;
+          var pct = Math.round((done / total) * 100);
+          $("val-plan-pct").textContent = pct + "%";
+          $("plan-fill").style.width = pct + "%";
+          $("val-plan-done").textContent = done + " done";
+          $("val-plan-total").textContent = total + " total";
+          $("plan-content").style.display = "";
+          $("plan-empty").style.display = "none";
+        } else {
+          $("plan-content").style.display = "none";
+          $("plan-empty").style.display = "";
+        }
+      }
+
+      function updateCost(data) {
+        $("val-session-cost").textContent = formatCost(data.sessionCost);
+        $("val-daily-cost").textContent = formatCost(data.dailyCost);
+      }
+
+      function formatCost(val) {
+        if (val == null) return "$0.00";
+        return "$" + val.toFixed(2);
+      }
+
+      function updateAudit(data) {
+        var list = $("audit-list");
+        var entries = data.entries || [];
+        if (entries.length === 0) {
+          list.innerHTML = '<p class="audit-empty">No audit entries yet</p>';
+          return;
+        }
+        var html = "";
+        for (var i = entries.length - 1; i >= 0; i--) {
+          var entry = entries[i];
+          var time = entry.ts ? new Date(entry.ts).toLocaleTimeString() : "";
+          var msg = escapeHtml(entry.message || entry.action || JSON.stringify(entry));
+          html += '<div class="audit-entry">';
+          if (time) html += '<div class="audit-time">' + time + '</div>';
+          html += '<div class="audit-msg">' + msg + '</div>';
+          html += '</div>';
+        }
+        list.innerHTML = html;
+      }
+
+      function escapeHtml(str) {
+        var div = document.createElement("div");
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+      }
+
+      // --- Refresh timer ---
+      function startRefresh() {
+        refreshAll();
+        stopRefresh();
+        refreshTimer = setInterval(refreshAll, 5000);
+      }
+
+      function stopRefresh() {
+        if (refreshTimer) {
+          clearInterval(refreshTimer);
+          refreshTimer = null;
+        }
+      }
+
+      // --- Init ---
+      function init() {
+        var token = getToken();
+        if (token) {
+          hidePairing();
+          setConnected(true);
+          startRefresh();
+        } else {
+          showPairing();
+          setConnected(false);
+        }
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>

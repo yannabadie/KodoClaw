@@ -1,4 +1,6 @@
 // src/ui/server.ts
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { verifySessionToken } from "./auth";
 import { handleRoute, type AppState } from "./routes";
 
@@ -41,6 +43,9 @@ export function startServer(config: ServerConfig) {
 }
 
 function getIndexHtml(): string {
-  // Stub — Task 30 will create the full embedded SPA
-  return "<html><body><h1>Kodo Dashboard</h1></body></html>";
+	try {
+		return readFileSync(join(import.meta.dir, "assets", "index.html"), "utf-8");
+	} catch {
+		return "<html><body><h1>Kodo Dashboard</h1><p>Assets not found</p></body></html>";
+	}
 }
