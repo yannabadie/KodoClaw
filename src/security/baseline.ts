@@ -22,6 +22,7 @@ export interface BehaviorEvent {
 export interface AnomalyReport {
 	anomalies: Anomaly[];
 	isNormal: boolean;
+	shouldTerminate: boolean;
 }
 
 export interface Anomaly {
@@ -110,9 +111,13 @@ export class BehaviorBaseline {
 			});
 		}
 
+		const criticalMultiplier = 2;
+		const shouldTerminate = anomalies.some(a => a.currentValue >= a.threshold * criticalMultiplier);
+
 		return {
 			anomalies,
 			isNormal: anomalies.length === 0,
+			shouldTerminate,
 		};
 	}
 

@@ -30,6 +30,18 @@ describe("classifyShellRisk", () => {
 		expect(classifyShellRisk("dd if=/dev/zero of=/dev/sda")).toBe("critical");
 		expect(classifyShellRisk("chmod 777 /etc")).toBe("critical");
 	});
+	test("classifies python -c as critical", () => {
+		expect(classifyShellRisk("python -c 'import os; os.system(\"rm -rf /\")'")).toBe("critical");
+		expect(classifyShellRisk("python3 --command 'print(1)'")).toBe("critical");
+	});
+	test("classifies node -e as critical", () => {
+		expect(classifyShellRisk("node -e 'require(\"child_process\").exec(\"ls\")'")).toBe("critical");
+	});
+	test("classifies docker run as high", () => {
+		expect(classifyShellRisk("docker run -it ubuntu bash")).toBe("high");
+		expect(classifyShellRisk("docker exec -it container bash")).toBe("high");
+		expect(classifyShellRisk("kubectl exec -it pod -- bash")).toBe("high");
+	});
 });
 
 describe("shouldConfirm", () => {

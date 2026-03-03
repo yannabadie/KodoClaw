@@ -12,6 +12,14 @@ const CRITICAL_PATTERNS: RegExp[] = [
 	/wget.*\|\s*(ba)?sh/,
 	/sudo\s/,
 	/chmod\s+777/,
+	/python3?\s+(-c|--command)\s/,
+	/node\s+-e\s/,
+	/bun\s+eval\s/,
+	/powershell.*-enc/,
+	/Invoke-Expression/,
+	/iex\s/i,
+	/\beval\s*\(/,
+	/\bexec\s*\(/,
 ];
 const HIGH_PATTERNS: RegExp[] = [
 	/\brm\b/,
@@ -22,6 +30,9 @@ const HIGH_PATTERNS: RegExp[] = [
 	/npm\s+publish/,
 	/\bcurl\b/,
 	/\bwget\b/,
+	/docker\s+run/,
+	/docker\s+exec/,
+	/kubectl\s+exec/,
 ];
 const MEDIUM_PATTERNS: RegExp[] = [
 	/git\s+commit/,

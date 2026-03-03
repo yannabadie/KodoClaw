@@ -1,4 +1,6 @@
 // src/rag/connector.ts
+import { CircuitBreaker } from "../security/circuit-breaker";
+
 export interface RAGResponse {
 	answer: string;
 	sources: string[];
@@ -16,6 +18,11 @@ interface ConnectorConfig {
 
 export class NotebookLMConnector {
 	private config: ConnectorConfig;
+	private breaker = new CircuitBreaker({
+		name: "rag-connector",
+		failureThreshold: 3,
+		resetTimeout: 60_000,
+	});
 
 	constructor(config: ConnectorConfig) {
 		this.config = config;
@@ -37,16 +44,18 @@ export class NotebookLMConnector {
 	async query(question: string, notebookId: string): Promise<RAGResponse | null> {
 		if (!(await this.isAvailable())) return null;
 
-		switch (this.config.strategy) {
-			case "mcp":
-				return this.queryViaMCP(question, notebookId);
-			case "python":
-				return this.queryViaPython(question, notebookId);
-			case "api":
-				return this.queryViaAPI(question, notebookId);
-			default:
-				return null;
-		}
+		return this.breaker.execute(async () => {
+			switch (this.config.strategy) {
+				case "mcp":
+					return this.queryViaMCP(question, notebookId);
+				case "python":
+					return this.queryViaPython(question, notebookId);
+				case "api":
+					return this.queryViaAPI(question, notebookId);
+				default:
+					return null;
+			}
+		});
 	}
 
 	private async queryViaMCP(_q: string, _nb: string): Promise<RAGResponse | null> {

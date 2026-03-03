@@ -111,6 +111,30 @@ describe("BehaviorBaseline", () => {
 		expect(baseline.recentCount).toBe(0);
 	});
 
+	test("shouldTerminate true when 2x threshold exceeded", () => {
+		const baseline = new BehaviorBaseline();
+		// injection threshold is 2, so 2x = 4; record 5 injection events
+		for (let i = 0; i < 5; i++) {
+			baseline.record(makeEvent({ injectionScore: 1 }));
+		}
+
+		const report = baseline.analyze();
+		expect(report.isNormal).toBe(false);
+		expect(report.shouldTerminate).toBe(true);
+	});
+
+	test("shouldTerminate false for normal anomalies", () => {
+		const baseline = new BehaviorBaseline();
+		// injection threshold is 2; record 3 (exceeds threshold but < 2x=4)
+		for (let i = 0; i < 3; i++) {
+			baseline.record(makeEvent({ injectionScore: 1 }));
+		}
+
+		const report = baseline.analyze();
+		expect(report.isNormal).toBe(false);
+		expect(report.shouldTerminate).toBe(false);
+	});
+
 	test("reset clears all events", () => {
 		const baseline = new BehaviorBaseline();
 		for (let i = 0; i < 51; i++) {
