@@ -90,8 +90,8 @@ describe("RAGCache", () => {
 		await cache.put("What is TLS?", "TLS is a security protocol", "cybersec", sources);
 		const result = await cache.getWithSources("What is TLS?", "cybersec");
 		expect(result).not.toBeNull();
-		expect(result!.answer).toBe("TLS is a security protocol");
-		expect(result!.sources).toEqual(sources);
+		expect(result?.answer).toBe("TLS is a security protocol");
+		expect(result?.sources).toEqual(sources);
 	});
 
 	test("get still returns string for backward compat", async () => {
@@ -107,8 +107,8 @@ describe("RAGCache", () => {
 		await cache.put("What is OAuth2?", "OAuth2 is an auth framework", "cybersec");
 		const result = await cache.getWithSources("What is OAuth2?", "cybersec");
 		expect(result).not.toBeNull();
-		expect(result!.answer).toBe("OAuth2 is an auth framework");
-		expect(result!.sources).toEqual([]);
+		expect(result?.answer).toBe("OAuth2 is an auth framework");
+		expect(result?.sources).toEqual([]);
 	});
 
 	test("duplicate query+mode updates existing entry", async () => {

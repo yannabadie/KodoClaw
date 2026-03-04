@@ -73,7 +73,10 @@ export class RAGCache {
 		return null;
 	}
 
-	async getWithSources(query: string, mode: string): Promise<{ answer: string; sources: string[] } | null> {
+	async getWithSources(
+		query: string,
+		mode: string,
+	): Promise<{ answer: string; sources: string[] } | null> {
 		// Exact match first (O(1) via hash key)
 		const id = entryId(query, mode);
 		const exact = this.entries.get(id);
