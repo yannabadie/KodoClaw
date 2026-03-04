@@ -1,32 +1,21 @@
-// src/rag/config.ts
+import { loadKodoConfig } from "../config/loader";
 import type { ConnectorConfig } from "./connector";
 
 export interface RAGSetupStatus {
 	geminiConfigured: boolean;
 	mcpConfigured: boolean;
-	geminiApiKey: string | null; // masked for display
+	geminiApiKey: string | null;
 	mcpServerName: string;
 	primary: string;
 	fallback: string;
 }
 
 /**
- * Load RAG configuration from environment + config.yaml.
- * Priority: env vars > config.yaml > defaults
+ * Load RAG configuration from environment + kodo.yaml.
+ * Priority: env vars > kodo.yaml > defaults
  */
-export function loadRAGConfig(_baseDir?: string): ConnectorConfig {
-	const geminiApiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? undefined;
-	const mcpServerName = process.env.KODO_MCP_SERVER ?? "notebooklm-mcp";
-
-	// Default: MCP primary, API fallback (if key available)
-	const config: ConnectorConfig = {
-		primary: "mcp",
-		fallback: geminiApiKey ? "api" : "none",
-		mcpServerName,
-		geminiApiKey,
-	};
-
-	return config;
+export function loadRAGConfig(baseDir?: string): ConnectorConfig {
+	return loadKodoConfig(baseDir ?? process.cwd()).rag;
 }
 
 /**
