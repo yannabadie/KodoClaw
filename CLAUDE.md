@@ -3,12 +3,12 @@
 ## Project overview
 Kodo is a Claude Code plugin providing intelligent memory, hierarchical
 planning, security, and NotebookLM RAG integration.
-104 TypeScript files (54 src + 50 test), ~8.5K LOC, Bun runtime.
+116 TypeScript files (60 src + 56 test), ~9.5K LOC, Bun runtime.
 
 ## Plugin surface
 
 ### Manifest
-`.claude-plugin/plugin.json` — name, version (0.4.1), author, license, keywords.
+`.claude-plugin/plugin.json` — name, version (0.5.0), author, license, keywords.
 
 ### Agents (5)
 Markdown files in `agents/` with YAML frontmatter (`name`, `description`) + system prompt.
@@ -82,7 +82,7 @@ Hook output formats per event type:
 - TypeScript strict, no `any`
 - Biome for lint+format: tabs, 100 char line width, recommended rules
 - `bun run check` before commit (zero errors required)
-- `bun test` before commit (430 tests, 905 expect() calls, zero failures)
+- `bun test` before commit (525 tests, 1119 expect() calls, zero failures)
 - Naming: camelCase functions/vars, PascalCase types/classes
 - Files: kebab-case.ts
 - One export per file preferred
@@ -137,12 +137,20 @@ Hook output formats per event type:
 - `sanitizer.ts` — Injection scan + confidential content redaction. Wraps output in delimiters.
 - `sufficiency.ts` — Context completeness check + query expansion for short queries.
 
+### src/agent/ — Agent foundation (5 modules)
+- `template.ts` — `AgentTemplate` interface with 5 built-in templates (code, architect, debug, review, security-audit). Type guard `isValidTemplate()`. Maps to Claude Code native agent spec fields.
+- `binding.ts` — `KnowledgeBinding` interface (backend: file_search/notebooklm/none, resourceId, metadataFilter, topK, citationPolicy, ttlMs). Factory `createBinding()`. Type guard `isValidBinding()`.
+- `instance.ts` — `AgentInstance` = template + optional binding. Factory `createInstance()`. `isExpired()` checks TTL.
+- `factory.ts` — `AgentFactory` class: `createInstance()`, `toClaudeCodeSpec()` (generates Claude Code `--agents` JSON), `writeAgentFile()` (creates `.md` with YAML frontmatter), `listInstances()`, `removeInstance()`.
+- `bridge.ts` — `modeToTemplate()` converts existing `BaseMode` subclasses into `AgentTemplate` for migration.
+
 ### src/config/ — Configuration (1 module)
 - `loader.ts` — Unified `kodo.yaml` config loader. `loadKodoConfig(baseDir)` reads `kodo.yaml`, merges with env vars, returns typed `KodoConfig` (RAG + cost). Priority: env vars > kodo.yaml > defaults. Never throws.
 
-### src/rag/ — NotebookLM RAG (2 modules)
-- `connector.ts` — Dual-strategy connector: primary NotebookLM MCP (subprocess `npx notebooklm-mcp`) + fallback Gemini File Search (`file_search_store_names` API, native `fetch()`). Dual circuit breakers (threshold=3, reset=60s). Per-mode notebook binding via `setCurrentMode()`. Public methods: `query()`, `enrich()`, `deepResearch()`. Backward-compatible with legacy `{ strategy: "none" }` config.
-- `cache.ts` — Query cache with 7-day TTL. BM25-based fuzzy matching (threshold 0.5). Stable hash IDs (SHA-256). Atomic write-then-rename.
+### src/rag/ — RAG (3 modules)
+- `connector.ts` — Multi-strategy connector: primary NotebookLM MCP (subprocess `npx notebooklm-mcp`), Gemini API, or **File Search** (`file_search_store_names` with per-mode store mapping). Dual circuit breakers (threshold=3, reset=60s). Per-mode notebook binding via `setCurrentMode()`. Public methods: `query()`, `enrich()`, `deepResearch()`. Strategies: `"mcp" | "api" | "file_search" | "none"`.
+- `file-search.ts` — Gemini File Search backend via native `fetch()`. `queryFileSearch()` sends to `generativelanguage.googleapis.com` with `file_search_store_names` and optional `metadataFilter`. `parseGeminiResponse()` extracts answer + sources from `groundingMetadata.groundingChunks`.
+- `cache.ts` — Query cache with 7-day TTL. BM25-based fuzzy matching (threshold 0.5). Stable hash IDs (SHA-256). Atomic write-then-rename. `CacheEntry` stores `sources[]` for provenance. `getWithSources()` returns `{ answer, sources }`.
 
 ### src/hooks/ — Hook handlers (8 modules)
 - `cli.ts` — Main dispatcher for 9 hook types. Reads JSON stdin, validates ALL payloads (9 validators), normalizes snake_case→camelCase, routes to handler, writes JSON stdout. Accepts both official (`tool_name`/`tool_input`) and legacy (`tool`/`params`) field names.
@@ -165,7 +173,7 @@ Hook output formats per event type:
 - `dashboard.ts` — ASCII dashboard renderer.
 
 ### Plugin root — metadata and configuration
-- `.claude-plugin/plugin.json` — Plugin manifest (name, version 0.4.0, author, license, keywords)
+- `.claude-plugin/plugin.json` — Plugin manifest (name, version 0.5.0, author, license, keywords)
 - `settings.json` — Default agent (`code`), tool permissions
 - `agents/*.md` — 5 agent definitions (code, architect, debug, review, security-audit)
 - `commands/*.md` — 11 slash commands (status, plan, memory, audit, cost, health, mode, autonomy, stop, undo, ui)
@@ -250,7 +258,7 @@ For detailed documentation beyond this AI-facing reference:
 
 ## Testing
 - Every `src/X/Y.ts` has corresponding `test/X/Y.test.ts`
-- 430 tests, 905 expect() calls, 0 failures, 50 test files
+- 525 tests, 1119 expect() calls, 0 failures, 56 test files
 - Security tests are mandatory: blocklist, injection, output-guard, vault, policy, baseline, circuit-breaker, integrity, rate-limiter, cost-tracker
 - Integration test in `test/integration.test.ts` covers full pipeline
 - Always await async operations in tests (no fire-and-forget)

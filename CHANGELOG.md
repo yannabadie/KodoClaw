@@ -2,6 +2,23 @@
 
 All notable changes to Kodo are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] - 2026-03-04
+
+### Fixed
+- **CRITICAL**: Tool name case sensitivity — Claude Code sends PascalCase ("Bash", "Read") but security guards compared lowercase. All file guards and shell risk classification were bypassed. Fixed with `.toLowerCase()` normalization at hook entry point.
+- Config path mismatch — `initKodo()` wrote `config.yaml` but `loadKodoConfig()` read `kodo.yaml`. Init config was silently ignored.
+- RAG cache dropped source provenance — `CacheEntry` now stores `sources[]` from `groundingMetadata`. Cached responses retain their provenance.
+- Decorative `permissions` block removed from `settings.json` (not read by any code).
+
+### Added
+- **Agent Foundation** — `src/agent/` module with AgentTemplate, KnowledgeBinding, AgentInstance types
+- **AgentFactory** — creates instances from templates, generates Claude Code `--agents` JSON specs, writes `.md` agent files
+- **Mode-to-template bridge** — `modeToTemplate()` converts existing BaseMode subclasses into AgentTemplates
+- **Gemini File Search backend** — `src/rag/file-search.ts` with native `fetch()` to `generativelanguage.googleapis.com`, `file_search_store_names`, `metadataFilter` support
+- **Connector `file_search` strategy** — new strategy option with per-mode store mapping via `geminiStores` config, circuit breaker integration
+- **`/kodo:agent` command** — create, list, remove dynamic agents with knowledge bindings
+- 5 built-in agent templates: code, architect, debug, review, security-audit
+
 ## [0.4.1] - 2026-03-04
 
 ### Added
