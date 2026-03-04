@@ -3,12 +3,12 @@
 ## Project overview
 Kodo is a Claude Code plugin providing intelligent memory, hierarchical
 planning, security, and NotebookLM RAG integration.
-100 TypeScript files (52 src + 48 test), ~7.9K LOC, Bun runtime.
+104 TypeScript files (54 src + 50 test), ~8.5K LOC, Bun runtime.
 
 ## Plugin surface
 
 ### Manifest
-`.claude-plugin/plugin.json` — name, version (0.4.0), author, license, keywords.
+`.claude-plugin/plugin.json` — name, version (0.4.1), author, license, keywords.
 
 ### Agents (5)
 Markdown files in `agents/` with YAML frontmatter (`name`, `description`) + system prompt.
@@ -82,7 +82,7 @@ Hook output formats per event type:
 - TypeScript strict, no `any`
 - Biome for lint+format: tabs, 100 char line width, recommended rules
 - `bun run check` before commit (zero errors required)
-- `bun test` before commit (381 tests, 808 expect() calls, zero failures)
+- `bun test` before commit (430 tests, 905 expect() calls, zero failures)
 - Naming: camelCase functions/vars, PascalCase types/classes
 - Files: kebab-case.ts
 - One export per file preferred
@@ -98,7 +98,7 @@ Hook output formats per event type:
 - `policy.ts` — Shell risk classifier (low/medium/high/critical) + autonomy policy matrix. Covers python -c, node -e, docker run, PowerShell -enc, eval(), exec(). Exports `classifyShellRisk()`, `shouldConfirm()`.
 - `blocklist.ts` — Sensitive path blocking (`.env`, `.ssh/*`, credentials). Content redaction preserving original regex flags. Exports `isSensitivePath()`, `isConfidentialContent()`, `redactConfidential()`.
 - `injection.ts` — Aho-Corasick O(n) multi-pattern scanner with 44 markers across 7 categories: role override, identity swap, system prompt, instruction override, social engineering, roleplay, prompt extraction (LLM07). Unicode homoglyph normalization (Cyrillic→Latin). Zero-width character stripping.
-- `output-guard.ts` — Scans LLM output for 11 dangerous patterns: XSS (script tags, javascript: URIs, event handlers), code execution (eval, Function, import, child_process), SQL injection (DROP TABLE, DELETE FROM, UNION SELECT), destructive commands (rm -rf /). Covers OWASP ASI05 + LLM05.
+- `output-guard.ts` — Scans LLM output for 17 dangerous patterns: XSS (script tags, javascript: URIs, event handlers), code execution (eval, Function, import, child_process), SQL injection (DROP TABLE, DELETE FROM, UNION SELECT), destructive commands (rm -rf /), system prompt leakage (SYSTEM: You are, System prompt:), instruction leakage, credential exposure (API_KEY=, Bearer JWT, password/secret/token). Covers OWASP ASI05 + LLM05 + LLM07.
 - `audit.ts` — Append-only JSONL log, one file per day. Exports `AuditLog` class.
 - `baseline.ts` — Behavioral anomaly detection. Tracks tool call frequency, injection attempts, sensitive access. Prunes stale events outside 5-minute window. Kill switch at 2x threshold (`shouldTerminate`).
 - `circuit-breaker.ts` — closed→open→half_open states. Prevents cascading failures. Wired into RAG connector.
@@ -128,23 +128,26 @@ Hook output formats per event type:
 - `built-in/review.ts` — ReviewMode: guarded, read-only, no planning.
 
 ### src/planning/ — Planning (3 modules)
-- `planner.ts` — Milestone-based plans. Exports `createPlan()`, `getActiveMilestone()`, `updateMilestone()`, `isPlanComplete()`, `renderPlanContext()`.
-- `hints.ts` — Contextual step hints based on milestone + last action/error.
-- `library.ts` — Archive/retrieve past plans. Per-file error handling (skips corrupt JSON). Word-overlap similarity search.
+- `planner.ts` — Hierarchical milestone-based plans with DAG dependencies. Exports `createPlan()`, `getActiveMilestone()`, `updateMilestone()`, `isPlanComplete()`, `renderPlanContext()`, `addSubtask()`, `completeSubtask()`, `getUnblockedMilestones()`, `replan()`. Milestones support `subtasks[]`, `blockedBy[]`, `priority`.
+- `hints.ts` — Contextual step hints based on milestone + last action/error + subtask progress.
+- `library.ts` — Archive/retrieve past plans. Per-file error handling (skips corrupt JSON). TF-IDF similarity search over task + goals.
 
 ### src/context/ — System prompt assembly (3 modules)
 - `assembler.ts` — 6-step pipeline with token budget (3000 tokens = 12K chars). Truncates with priority order. Appends anti-leakage armor suffix (LLM07 defense).
 - `sanitizer.ts` — Injection scan + confidential content redaction. Wraps output in delimiters.
 - `sufficiency.ts` — Context completeness check + query expansion for short queries.
 
+### src/config/ — Configuration (1 module)
+- `loader.ts` — Unified `kodo.yaml` config loader. `loadKodoConfig(baseDir)` reads `kodo.yaml`, merges with env vars, returns typed `KodoConfig` (RAG + cost). Priority: env vars > kodo.yaml > defaults. Never throws.
+
 ### src/rag/ — NotebookLM RAG (2 modules)
-- `connector.ts` — Dual-strategy connector: primary NotebookLM MCP (subprocess `npx notebooklm-mcp`) + fallback Gemini File Search (native `fetch()`). Dual circuit breakers (threshold=3, reset=60s). Per-mode notebook binding via `setCurrentMode()`. Public methods: `query()`, `enrich()`, `deepResearch()`. Backward-compatible with legacy `{ strategy: "none" }` config.
+- `connector.ts` — Dual-strategy connector: primary NotebookLM MCP (subprocess `npx notebooklm-mcp`) + fallback Gemini File Search (`file_search_store_names` API, native `fetch()`). Dual circuit breakers (threshold=3, reset=60s). Per-mode notebook binding via `setCurrentMode()`. Public methods: `query()`, `enrich()`, `deepResearch()`. Backward-compatible with legacy `{ strategy: "none" }` config.
 - `cache.ts` — Query cache with 7-day TTL. BM25-based fuzzy matching (threshold 0.5). Stable hash IDs (SHA-256). Atomic write-then-rename.
 
 ### src/hooks/ — Hook handlers (8 modules)
 - `cli.ts` — Main dispatcher for 9 hook types. Reads JSON stdin, validates ALL payloads (9 validators), normalizes snake_case→camelCase, routes to handler, writes JSON stdout. Accepts both official (`tool_name`/`tool_input`) and legacy (`tool`/`params`) field names.
-- `session-start.ts` — Loads user profile traits + runs `buildMemoryContext()` recall pipeline (BM25+decay). Falls back to cell count if no cells match. Returns `additionalContext` for Claude.
-- `user-prompt-submit.ts` — Scans user prompts with injection scanner. Blocks at score >= 4. Warns at score >= 1.
+- `session-start.ts` — Loads user profile traits + runs `buildMemoryContext()` recall pipeline (BM25+decay). Uses last user prompt as BM25 query (task-driven recall), falls back to `"recent project context"` if no prompt saved. Falls back to cell count if no cells match. Returns `additionalContext` for Claude.
+- `user-prompt-submit.ts` — Scans user prompts with injection scanner. Blocks at score >= 4. Warns at score >= 1. Exports `persistLastPrompt()` for task-driven recall.
 - `post-tool-failure.ts` — Logs tool failures to daily `{date}-failures.jsonl` audit file.
 - `stop.ts` — Session stop: audit summary with tool count + duration.
 - `notification.ts` — Alert logging to daily JSONL (info/warning/critical).
@@ -172,7 +175,7 @@ Hook output formats per event type:
 
 ### Root entry points
 - `src/index.ts` — `initKodo()`: creates directory structure + default config + vault.
-- `src/plugin.ts` — `handlePreToolUse()`, `handlePostToolUse()`: path blocking, risk classification, injection scanning, output guard. `extractPaths()` covers read/write/edit/glob/grep tools. `PostToolResult` includes `outputThreats: string[]`.
+- `src/plugin.ts` — `handlePreToolUse()`, `handlePostToolUse()`: path blocking, risk classification, injection scanning, output guard. `extractPaths()` covers read/write/edit/glob/grep tools. `PreToolResult` includes optional `updatedInput` and `systemMessage`. `PostToolResult` includes `outputThreats: string[]`.
 
 ## Documentation
 
@@ -225,7 +228,8 @@ For detailed documentation beyond this AI-facing reference:
 - `loadMemCells()` validates JSON with `isMemCell()` type guard, skips invalid files
 - `getTemporaryStates()` filters expired entries (non-mutating)
 - `buildMemoryContext()` pipeline: loadMemCells → BM25 index → search → decay weighting → formatted markdown
-- SessionStart hook calls `buildMemoryContext("recent project context")` with fallback to cell count
+- SessionStart hook reads `memory/last-prompt.txt` for task-driven recall query, falls back to `"recent project context"`
+- UserPromptSubmit hook persists prompt to `memory/last-prompt.txt` (truncated to 500 chars) before injection scan
 
 ### Hooks
 - 9 registered hook types in official nested plugin format
@@ -233,8 +237,8 @@ For detailed documentation beyond this AI-facing reference:
 - CLI accepts both official (`tool_name`/`tool_input`/`session_id`) and legacy field names
 - All 9 hook payloads validated before processing; invalid → exit code 2
 - Snake_case fields normalized to camelCase before passing to handlers
-- PreToolUse: `hookSpecificOutput` with `permissionDecision`
-- PostToolUse: top-level `decision: "block"` or `hookSpecificOutput.additionalContext`
+- PreToolUse: `hookSpecificOutput` with `permissionDecision`, optional `updatedInput`, optional top-level `systemMessage`
+- PostToolUse: top-level `decision: "block"` or `hookSpecificOutput.additionalContext`, optional top-level `systemMessage` for output threats
 - SessionStart: `hookSpecificOutput.additionalContext` with profile + memory summary
 - UserPromptSubmit: top-level `decision: "block"` for injection
 - Kill switch: `{ continue: false, stopReason }` halts Claude entirely
@@ -246,7 +250,7 @@ For detailed documentation beyond this AI-facing reference:
 
 ## Testing
 - Every `src/X/Y.ts` has corresponding `test/X/Y.test.ts`
-- 381 tests, 808 expect() calls, 0 failures, 48 test files
+- 430 tests, 905 expect() calls, 0 failures, 50 test files
 - Security tests are mandatory: blocklist, injection, output-guard, vault, policy, baseline, circuit-breaker, integrity, rate-limiter, cost-tracker
 - Integration test in `test/integration.test.ts` covers full pipeline
 - Always await async operations in tests (no fire-and-forget)
@@ -290,7 +294,7 @@ For detailed documentation beyond this AI-facing reference:
 - ASI02 (Tool Misuse): Risk classifier, autonomy policy matrix, sensitive path blocklist
 - ASI03 (Identity & Privilege Abuse): 4-level autonomy with mode-specific tool restrictions, YAML loader validates autonomy values
 - ASI04 (Supply Chain Vulnerabilities): SHA-256 manifest verification for skill files
-- ASI05 (Unexpected Code Execution): Output guard scans for XSS, eval, SQL injection, destructive commands
+- ASI05 (Unexpected Code Execution): Output guard scans for XSS, eval, SQL injection, destructive commands, credential leakage
 - ASI06 (Memory & Context Poisoning): MemCell checksums, injection scanning on writes, type guard validation
 - ASI08 (Cascading Failures): Circuit breaker on RAG connector
 - ASI09 (Human-Agent Trust Exploitation): Append-only JSONL audit, daily rotation, failure logging
@@ -298,5 +302,6 @@ For detailed documentation beyond this AI-facing reference:
 
 ### LLM Top 10 (2025)
 - LLM01 (Prompt Injection): Same as ASI01 above
-- LLM05 (Improper Output Handling): Output guard module, content redaction
+- LLM05 (Improper Output Handling): Output guard module (17 patterns), content redaction
+- LLM07 (System Prompt Leakage): 10 prompt extraction markers in injection scanner, anti-leakage armor in system prompt, output guard detects system prompt and instruction leakage
 - LLM07 (System Prompt Leakage): 10 prompt extraction markers in injection scanner, anti-leakage armor in system prompt

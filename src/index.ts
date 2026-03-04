@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Vault } from "./security/vault";
 
 export const PLUGIN_NAME = "kodo";
-export const PLUGIN_VERSION = "0.4.0";
+export const PLUGIN_VERSION = "0.4.1";
 
 const DEFAULT_CONFIG = `# Kodo Configuration
 autonomy: trusted

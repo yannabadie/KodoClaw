@@ -2,6 +2,29 @@
 
 All notable changes to Kodo are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.1] - 2026-03-04
+
+### Added
+- Hierarchical planning: milestones now support `subtasks[]`, `blockedBy[]` (DAG dependencies), and `priority`
+- `addSubtask()`, `completeSubtask()`, `getUnblockedMilestones()`, `replan()` functions in planner
+- Subtask progress display in contextual hints (`Subtasks: 2/5 done — Next: ...`)
+- TF-IDF similarity scoring in milestone library (replaces word-overlap), searches goals too
+- Task-driven memory recall: persists last user prompt, uses it as BM25 query on next SessionStart
+- `persistLastPrompt()` function in UserPromptSubmit hook
+- Unified `kodo.yaml` config loader (`src/config/loader.ts`) with priority: env vars > kodo.yaml > defaults
+- `KodoConfig` interface combining RAG and cost configuration
+
+### Changed
+- `loadRAGConfig()` now delegates to `loadKodoConfig()` — actually reads kodo.yaml as documented
+- Cost tracker can now be configured via `kodo.yaml` cost section
+- SessionStart recall query is dynamic (last user prompt) instead of hardcoded "recent project context"
+- 104 TypeScript files (54 src + 50 test), up from 102
+- 430 tests, 905 expect() calls, up from 408 tests, 860 calls
+
+### Fixed
+- RAG config claimed "env vars > config.yaml > defaults" but never read config.yaml — now reads kodo.yaml
+- Cost tracker defaults were hardcoded with no config file support — now wired via kodo.yaml
+
 ## [0.4.0] - 2026-03-04
 
 ### Added
