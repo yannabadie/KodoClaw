@@ -31,4 +31,28 @@ describe("StepHint", () => {
 		expect(rendered).toContain("State:");
 		expect(rendered).toContain("Gap:");
 	});
+
+	test("includes subtask progress in hint", () => {
+		const milestone: Milestone = {
+			id: 1,
+			goal: "Setup auth",
+			status: "in_progress",
+			subtasks: [
+				{ id: 1, label: "Install deps", done: true },
+				{ id: 2, label: "Configure OAuth", done: false },
+				{ id: 3, label: "Write tests", done: false },
+			],
+		};
+		const hint = generateHint(milestone, { lastAction: "Installed deps", lastError: null });
+		const rendered = hint.render();
+		expect(rendered).toContain("Subtasks: 1/3 done");
+		expect(rendered).toContain("Next: Configure OAuth");
+	});
+
+	test("hint shows no subtask info when none exist", () => {
+		const milestone: Milestone = { id: 1, goal: "Setup", status: "in_progress" };
+		const hint = generateHint(milestone, { lastAction: "Started", lastError: null });
+		const rendered = hint.render();
+		expect(rendered).not.toContain("Subtasks:");
+	});
 });
