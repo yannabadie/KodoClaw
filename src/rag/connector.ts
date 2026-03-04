@@ -8,6 +8,19 @@ export interface RAGResponse {
 	confidence: number;
 }
 
+export type RAGStatusLevel = "ok" | "degraded" | "unavailable";
+
+export interface RAGStatus {
+	level: RAGStatusLevel;
+	primaryState: string; // "ok" | "auth_expired" | "error" | "unavailable"
+	fallbackState: string; // "ok" | "active" | "error" | "unavailable"
+	lastError: string | null;
+	message: string; // Human-readable status for display
+}
+
+/** Callback invoked when RAG status changes (e.g., auth expired -> fallback). */
+export type RAGStatusCallback = (status: RAGStatus) => void;
+
 export type ConnectorStrategy = "mcp" | "api" | "none";
 
 /**
@@ -47,12 +60,28 @@ const MCP_TIMEOUT_MS = 30_000;
 const GEMINI_BASE_URL =
 	"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
+const AUTH_EXPIRY_PATTERNS = [
+	"authentication expired",
+	"session expired",
+	"login required",
+	"auth error",
+	"unauthorized",
+	"401",
+	"cookie",
+	"re-authenticate",
+	"notebooklm login",
+];
+
 export class NotebookLMConnector {
 	private config: ConnectorConfig;
 	private primaryBreaker: CircuitBreaker;
 	private fallbackBreaker: CircuitBreaker;
 	private cache: RAGCache | null = null;
 	private currentMode = "code";
+	private statusCallback: RAGStatusCallback | null = null;
+	private _lastError: string | null = null;
+	private _primaryState = "ok";
+	private _fallbackState = "unavailable";
 
 	constructor(config: AcceptedConfig) {
 		this.config = isLegacyConfig(config) ? normalizeLegacy(config) : config;
@@ -87,6 +116,36 @@ export class NotebookLMConnector {
 		return primary !== "none" || fallback !== "none";
 	}
 
+	/** Register a callback for RAG status changes. */
+	onStatusChange(callback: RAGStatusCallback): void {
+		this.statusCallback = callback;
+	}
+
+	/** Get current RAG health status. */
+	get status(): RAGStatus {
+		const level: RAGStatusLevel =
+			this._primaryState === "ok"
+				? "ok"
+				: this._fallbackState === "active"
+					? "degraded"
+					: "unavailable";
+
+		const message =
+			level === "ok"
+				? "RAG operational (primary: MCP)"
+				: level === "degraded"
+					? `RAG degraded — using fallback. ${this._lastError ?? ""}`
+					: `RAG unavailable. ${this._lastError ?? ""}`;
+
+		return {
+			level,
+			primaryState: this._primaryState,
+			fallbackState: this._fallbackState,
+			lastError: this._lastError,
+			message: message.trim(),
+		};
+	}
+
 	/**
 	 * Query the RAG backend with cache → primary → fallback chain.
 	 *
@@ -115,6 +174,12 @@ export class NotebookLMConnector {
 			notebookId,
 		);
 		if (primaryResult) {
+			if (this._primaryState !== "ok") {
+				this._primaryState = "ok";
+				this._fallbackState = "unavailable";
+				this._lastError = null;
+				this.notifyStatusChange();
+			}
 			await this.cacheResult(question, primaryResult);
 			return primaryResult;
 		}
@@ -129,6 +194,8 @@ export class NotebookLMConnector {
 				notebookId,
 			);
 			if (fallbackResult) {
+				this._fallbackState = "active";
+				this.notifyStatusChange();
 				await this.cacheResult(question, fallbackResult);
 				return fallbackResult;
 			}
@@ -247,6 +314,19 @@ export class NotebookLMConnector {
 			clearTimeout(timeout);
 
 			if (exitCode !== 0) {
+				const stderrText = await new Response(proc.stderr).text();
+				const isAuthError = AUTH_EXPIRY_PATTERNS.some((p) => stderrText.toLowerCase().includes(p));
+
+				if (isAuthError) {
+					this._primaryState = "auth_expired";
+					this._lastError =
+						"NotebookLM session expired. Run `notebooklm login` to re-authenticate, then Kodo will auto-recover.";
+					this.notifyStatusChange();
+					throw new Error(`MCP auth expired: ${stderrText.slice(0, 200)}`);
+				}
+
+				this._primaryState = "error";
+				this._lastError = `MCP error (exit ${exitCode}): ${stderrText.slice(0, 100)}`;
 				throw new Error(`MCP subprocess exited with code ${exitCode}`);
 			}
 
@@ -309,6 +389,14 @@ export class NotebookLMConnector {
 	private async cacheResult(question: string, result: RAGResponse): Promise<void> {
 		if (this.cache) {
 			await this.cache.put(question, result.answer, this.currentMode);
+		}
+	}
+
+	// ── Status notification ────────────────────────────────────────────
+
+	private notifyStatusChange(): void {
+		if (this.statusCallback) {
+			this.statusCallback(this.status);
 		}
 	}
 }
