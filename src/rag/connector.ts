@@ -160,9 +160,9 @@ export class NotebookLMConnector {
 
 		// 1. Check cache
 		if (this.cache) {
-			const cached = await this.cache.get(question, this.currentMode);
+			const cached = await this.cache.getWithSources(question, this.currentMode);
 			if (cached) {
-				return { answer: cached, sources: [], confidence: 1.0 };
+				return { answer: cached.answer, sources: cached.sources, confidence: 1.0 };
 			}
 		}
 
@@ -388,7 +388,7 @@ export class NotebookLMConnector {
 
 	private async cacheResult(question: string, result: RAGResponse): Promise<void> {
 		if (this.cache) {
-			await this.cache.put(question, result.answer, this.currentMode);
+			await this.cache.put(question, result.answer, this.currentMode, result.sources);
 		}
 	}
 

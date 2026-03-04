@@ -85,6 +85,32 @@ describe("RAGCache", () => {
 		expect(tmpExists).toBe(false);
 	});
 
+	test("put stores sources and getWithSources returns them", async () => {
+		const sources = ["https://example.com/doc1", "https://example.com/doc2"];
+		await cache.put("What is TLS?", "TLS is a security protocol", "cybersec", sources);
+		const result = await cache.getWithSources("What is TLS?", "cybersec");
+		expect(result).not.toBeNull();
+		expect(result!.answer).toBe("TLS is a security protocol");
+		expect(result!.sources).toEqual(sources);
+	});
+
+	test("get still returns string for backward compat", async () => {
+		const sources = ["https://example.com/doc1"];
+		await cache.put("What is TLS?", "TLS is a security protocol", "cybersec", sources);
+		const result = await cache.get("What is TLS?", "cybersec");
+		expect(typeof result).toBe("string");
+		expect(result).toBe("TLS is a security protocol");
+	});
+
+	test("getWithSources returns empty sources for legacy entries", async () => {
+		// put without sources (simulates legacy entries with no sources field)
+		await cache.put("What is OAuth2?", "OAuth2 is an auth framework", "cybersec");
+		const result = await cache.getWithSources("What is OAuth2?", "cybersec");
+		expect(result).not.toBeNull();
+		expect(result!.answer).toBe("OAuth2 is an auth framework");
+		expect(result!.sources).toEqual([]);
+	});
+
 	test("duplicate query+mode updates existing entry", async () => {
 		await cache.put("What is TLS?", "TLS v1 answer", "security");
 		await cache.put("What is TLS?", "TLS v2 updated answer", "security");

@@ -9,6 +9,7 @@ interface CacheEntry {
 	answer: string;
 	mode: string;
 	cachedAt: number; // epoch ms
+	sources?: string[]; // provenance from groundingMetadata
 }
 
 const TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -46,8 +47,8 @@ export class RAGCache {
 		return cache;
 	}
 
-	async put(query: string, answer: string, mode: string): Promise<void> {
-		const entry: CacheEntry = { query, answer, mode, cachedAt: Date.now() };
+	async put(query: string, answer: string, mode: string, sources: string[] = []): Promise<void> {
+		const entry: CacheEntry = { query, answer, mode, cachedAt: Date.now(), sources };
 		const id = entryId(query, mode);
 		this.entries.set(id, entry);
 		this.index.add(id, `${mode} ${query}`);
@@ -66,6 +67,24 @@ export class RAGCache {
 			const entry = this.entries.get(r.id);
 			if (entry && entry.mode === mode && r.score > SIMILARITY_THRESHOLD) {
 				return entry.answer;
+			}
+		}
+
+		return null;
+	}
+
+	async getWithSources(query: string, mode: string): Promise<{ answer: string; sources: string[] } | null> {
+		// Exact match first (O(1) via hash key)
+		const id = entryId(query, mode);
+		const exact = this.entries.get(id);
+		if (exact) return { answer: exact.answer, sources: exact.sources ?? [] };
+
+		// BM25 fuzzy match
+		const results = this.index.search(`${mode} ${query}`, 3);
+		for (const r of results) {
+			const entry = this.entries.get(r.id);
+			if (entry && entry.mode === mode && r.score > SIMILARITY_THRESHOLD) {
+				return { answer: entry.answer, sources: entry.sources ?? [] };
 			}
 		}
 
