@@ -74,6 +74,16 @@ describe("UI auth", () => {
 		expect(verifySessionToken(extracted, secret)).toBe(true);
 	});
 
+	test("rejects expired session token", () => {
+		const session = createSessionToken(secret);
+		expect(verifySessionToken(session, secret, -1)).toBe(false);
+	});
+
+	test("accepts session token within TTL", () => {
+		const session = createSessionToken(secret);
+		expect(verifySessionToken(session, secret, 86_400_000)).toBe(true);
+	});
+
 	test("handles missing Bearer prefix", () => {
 		// When there's no "Bearer " prefix, token should be empty
 		const authHeader = "some-random-value";

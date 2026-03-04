@@ -35,10 +35,20 @@ export function createSessionToken(secret: string): string {
 	return `${payload}:${sig}`;
 }
 
-export function verifySessionToken(token: string, secret: string): boolean {
+export function verifySessionToken(
+	token: string,
+	secret: string,
+	ttlMs = 86_400_000,
+): boolean {
 	const lastColon = token.lastIndexOf(":");
 	if (lastColon === -1) return false;
 	const payload = token.slice(0, lastColon);
 	const sig = token.slice(lastColon + 1);
-	return hmacEqual(hmacSign(payload, secret), sig);
+	if (!hmacEqual(hmacSign(payload, secret), sig)) return false;
+	const parts = payload.split(":");
+	if (parts.length < 2) return false;
+	const ts = Number.parseInt(parts[1] ?? "0");
+	if (Number.isNaN(ts)) return false;
+	const age = Date.now() - ts;
+	return age >= 0 && age <= ttlMs;
 }
