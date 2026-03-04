@@ -34,7 +34,7 @@ function validatePreToolInput(v: unknown): v is Parameters<typeof handlePreToolU
 	if (typeof tool !== "string") return false;
 	if (typeof params !== "object" || params === null) return false;
 	// Normalize to internal format
-	(obj as Record<string, unknown>).tool = tool;
+	(obj as Record<string, unknown>).tool = tool.toLowerCase();
 	(obj as Record<string, unknown>).params = params;
 	(obj as Record<string, unknown>).mode = mode;
 	(obj as Record<string, unknown>).autonomy = autonomy;
@@ -296,7 +296,7 @@ async function main(): Promise<void> {
 			const failInput = payload as Record<string, unknown>;
 			result = await handlePostToolUseFailure(
 				{
-					toolName: (failInput.tool_name ?? "") as string,
+					toolName: ((failInput.tool_name ?? "") as string).toLowerCase(),
 					error: (failInput.error ?? "") as string,
 					sessionId: (failInput.session_id ?? "") as string,
 				},

@@ -132,6 +132,46 @@ describe("hooks CLI wrapper", () => {
 		expect(result.hookSpecificOutput.permissionDecision).toBe("deny");
 	});
 
+	// --- PascalCase tool name normalization (security fix) ---
+
+	test("PreToolUse normalizes PascalCase 'Bash' to lowercase 'bash'", async () => {
+		const { stdout, exitCode } = await runCli("PreToolUse", {
+			tool_name: "Bash",
+			tool_input: { command: "echo hello" },
+		});
+		expect(exitCode).toBe(0);
+		const result = JSON.parse(stdout) as HookSpecificOutput;
+		expect(result.hookSpecificOutput).toBeDefined();
+		// Should be processed by the bash security guard (which checks tool === "bash")
+		expect(result.hookSpecificOutput.hookEventName).toBe("PreToolUse");
+	});
+
+	test("PreToolUse normalizes PascalCase 'Read' to lowercase and blocks sensitive path", async () => {
+		const { stdout, exitCode } = await runCli("PreToolUse", {
+			tool_name: "Read",
+			tool_input: { file_path: ".env" },
+		});
+		expect(exitCode).toBe(0);
+		const result = JSON.parse(stdout) as HookSpecificOutput;
+		expect(result.hookSpecificOutput).toBeDefined();
+		// PascalCase "Read" must be normalized to "read" so the sensitive path guard triggers
+		expect(result.hookSpecificOutput.permissionDecision).toBe("deny");
+		expect(result.hookSpecificOutput.permissionDecisionReason).toContain("sensitive");
+	});
+
+	test("PreToolUse normalizes PascalCase 'Write' to lowercase and blocks sensitive path", async () => {
+		const { stdout, exitCode } = await runCli("PreToolUse", {
+			tool_name: "Write",
+			tool_input: { file_path: ".env" },
+		});
+		expect(exitCode).toBe(0);
+		const result = JSON.parse(stdout) as HookSpecificOutput;
+		expect(result.hookSpecificOutput).toBeDefined();
+		// PascalCase "Write" must be normalized to "write" so the sensitive path guard triggers
+		expect(result.hookSpecificOutput.permissionDecision).toBe("deny");
+		expect(result.hookSpecificOutput.permissionDecisionReason).toContain("sensitive");
+	});
+
 	// --- Kill switch support ---
 
 	test("PreToolUse returns continue:false for kill switch reason", async () => {
