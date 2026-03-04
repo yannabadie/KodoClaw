@@ -3,12 +3,12 @@
 ## Project overview
 Kodo is a Claude Code plugin providing intelligent memory, hierarchical
 planning, security, and NotebookLM RAG integration.
-98 TypeScript files (51 src + 47 test), ~7.5K LOC, Bun runtime.
+100 TypeScript files (52 src + 48 test), ~7.9K LOC, Bun runtime.
 
 ## Plugin surface
 
 ### Manifest
-`.claude-plugin/plugin.json` — name, version (0.3.0), author, license, keywords.
+`.claude-plugin/plugin.json` — name, version (0.4.0), author, license, keywords.
 
 ### Agents (5)
 Markdown files in `agents/` with YAML frontmatter (`name`, `description`) + system prompt.
@@ -82,7 +82,7 @@ Hook output formats per event type:
 - TypeScript strict, no `any`
 - Biome for lint+format: tabs, 100 char line width, recommended rules
 - `bun run check` before commit (zero errors required)
-- `bun test` before commit (338 tests, 742 expect() calls, zero failures)
+- `bun test` before commit (381 tests, 808 expect() calls, zero failures)
 - Naming: camelCase functions/vars, PascalCase types/classes
 - Files: kebab-case.ts
 - One export per file preferred
@@ -94,7 +94,7 @@ Hook output formats per event type:
 ## File structure
 
 ### src/security/ — Policy kernel (11 modules)
-- `vault.ts` — XChaCha20-Poly1305 encrypted secret store. Atomic write-then-rename. Key file restricted to mode 0o600.
+- `vault.ts` — XChaCha20-Poly1305 encrypted secret store. Atomic write-then-rename. Key file AND vault.enc restricted to mode 0o600.
 - `policy.ts` — Shell risk classifier (low/medium/high/critical) + autonomy policy matrix. Covers python -c, node -e, docker run, PowerShell -enc, eval(), exec(). Exports `classifyShellRisk()`, `shouldConfirm()`.
 - `blocklist.ts` — Sensitive path blocking (`.env`, `.ssh/*`, credentials). Content redaction preserving original regex flags. Exports `isSensitivePath()`, `isConfidentialContent()`, `redactConfidential()`.
 - `injection.ts` — Aho-Corasick O(n) multi-pattern scanner with 44 markers across 7 categories: role override, identity swap, system prompt, instruction override, social engineering, roleplay, prompt extraction (LLM07). Unicode homoglyph normalization (Cyrillic→Latin). Zero-width character stripping.
@@ -102,23 +102,24 @@ Hook output formats per event type:
 - `audit.ts` — Append-only JSONL log, one file per day. Exports `AuditLog` class.
 - `baseline.ts` — Behavioral anomaly detection. Tracks tool call frequency, injection attempts, sensitive access. Prunes stale events outside 5-minute window. Kill switch at 2x threshold (`shouldTerminate`).
 - `circuit-breaker.ts` — closed→open→half_open states. Prevents cascading failures. Wired into RAG connector.
-- `cost-tracker.ts` — Token usage tracking with USD budget enforcement.
+- `cost-tracker.ts` — Token usage tracking with USD budget enforcement. Configurable `CostConfig` with `inputCostPerM`/`outputCostPerM`/`budgetUsd`. Backward-compatible constructor accepts `CostConfig | number`.
 - `rate-limiter.ts` — Sliding window rate limiter for tool calls.
 - `integrity.ts` — SHA-256 manifest for skill file verification.
 
-### src/memory/ — Memory engine (7 modules)
+### src/memory/ — Memory engine (8 modules)
 - `memcell.ts` — Episodic memory unit with optional `importance` field (0.0-1.0+, default 1.0). SHA-256 checksums for tamper detection. Injection scanning on write (blocks score >= 4). `isMemCell()` type guard validates JSON before loading. Exports `createMemCell()`, `loadMemCells()`, `computeChecksum()`, `verifyChecksum()`.
 - `memscene.ts` — Scene clustering via Jaccard similarity (threshold 0.3). Crypto-safe IDs (`randomUUID`). Exports `consolidate()`, `loadMemScenes()`.
 - `profile.ts` — User traits (stable) + temporary states (expiring ISO date). `getTemporaryStates()` filters expired entries. `renderContext()` is non-mutating (does not call `purgeExpired()`). Exports `UserProfile` class.
 - `recall.ts` — Cosine similarity, Reciprocal Rank Fusion (k=60), TF-IDF vectorization. `applyDecayToScores()` multiplies BM25 scores by retention factors. No external deps.
 - `bm25.ts` — Full-text search using BM25 ranking (k1=1.5, b=0.75). Serializable index. Integrates stemmer + stop words.
 - `stemmer.ts` — Simplified Porter stemmer (14 suffix rules, `-ation` before `-tion` for correct ordering) + 88 English stop words.
-- `decay.ts` — FadeMem-inspired importance-weighted decay. `retention(t) = e^(-(t/S)^β)` where S = importance * 7 days, β = 0.8 (sub-linear). Prune threshold 10%. Exports `computeRetention()`, `applyDecay()`, `pruneDecayed()`.
+- `decay.ts` — FadeMem-inspired importance-weighted decay. `retention(t) = e^(-(t/S)^β)` where S = importance * 7 days, β = 0.8 (sub-linear). Prune threshold 10%. `importance: Infinity` → retention always 1.0 (permanent memories). Exports `computeRetention()`, `applyDecay()`, `pruneDecayed()`.
+- `builder.ts` — Memory recall pipeline. `buildMemoryContext(cellsDir, query, topK)` loads cells, builds BM25 index, searches, applies decay-weighted scoring, returns formatted markdown. Wired into session-start hook.
 
 ### src/modes/ — Mode engine (9 modules)
 - `base-mode.ts` — Abstract `BaseMode` class. Properties: `name`, `slug`, `instructions`, `allowedTools`, `autonomyLevel`, `memoryDepth`, `planningEnabled`.
 - `detector.ts` — Heuristic mode detection from user message keywords. Returns `BuiltInSlug`.
-- `loader.ts` — Load custom modes from YAML files. Validates `autonomy` against allowed values. Rejects slugs that conflict with built-ins (code, architect, ask, debug, plan, review). Supports `extends` inheritance.
+- `loader.ts` — Load custom modes from YAML files. Validates `autonomy` against allowed values. Rejects slugs that conflict with built-ins (code, architect, ask, debug, plan, review). Implements `extends` inheritance: child YAML modes inherit parent's `allowedTools`, `autonomy`, `memory`, `planning`, `notebookId` via `getBuiltInBySlug()` helper. Child properties override parent defaults.
 - `built-in/code.ts` — CodeMode: trusted, full tools, planning enabled.
 - `built-in/architect.ts` — ArchitectMode: supervised, read-only, full memory.
 - `built-in/ask.ts` — AskMode: guarded, read-only, no planning.
@@ -137,12 +138,12 @@ Hook output formats per event type:
 - `sufficiency.ts` — Context completeness check + query expansion for short queries.
 
 ### src/rag/ — NotebookLM RAG (2 modules)
-- `connector.ts` — Multi-strategy connector (MCP, Python, API). Circuit breaker on failures (threshold=3, reset=60s).
+- `connector.ts` — Dual-strategy connector: primary NotebookLM MCP (subprocess `npx notebooklm-mcp`) + fallback Gemini File Search (native `fetch()`). Dual circuit breakers (threshold=3, reset=60s). Per-mode notebook binding via `setCurrentMode()`. Public methods: `query()`, `enrich()`, `deepResearch()`. Backward-compatible with legacy `{ strategy: "none" }` config.
 - `cache.ts` — Query cache with 7-day TTL. BM25-based fuzzy matching (threshold 0.5). Stable hash IDs (SHA-256). Atomic write-then-rename.
 
 ### src/hooks/ — Hook handlers (8 modules)
 - `cli.ts` — Main dispatcher for 9 hook types. Reads JSON stdin, validates ALL payloads (9 validators), normalizes snake_case→camelCase, routes to handler, writes JSON stdout. Accepts both official (`tool_name`/`tool_input`) and legacy (`tool`/`params`) field names.
-- `session-start.ts` — Loads user profile traits + counts memory cells. Returns `additionalContext` for Claude.
+- `session-start.ts` — Loads user profile traits + runs `buildMemoryContext()` recall pipeline (BM25+decay). Falls back to cell count if no cells match. Returns `additionalContext` for Claude.
 - `user-prompt-submit.ts` — Scans user prompts with injection scanner. Blocks at score >= 4. Warns at score >= 1.
 - `post-tool-failure.ts` — Logs tool failures to daily `{date}-failures.jsonl` audit file.
 - `stop.ts` — Session stop: audit summary with tool count + duration.
@@ -152,7 +153,7 @@ Hook output formats per event type:
 
 ### src/ui/ — Web dashboard (3 modules)
 - `server.ts` — Bun HTTP server bound to 127.0.0.1 only. HMAC auth on `/api/*` routes. Prefix-safe Bearer token extraction.
-- `auth.ts` — HMAC-SHA256 pairing + session tokens. Timing-safe comparison with hex validation.
+- `auth.ts` — HMAC-SHA256 pairing + session tokens. Timing-safe comparison with hex validation. Session token TTL enforcement (default 24h, configurable `ttlMs` parameter).
 - `routes.ts` — REST endpoints: `/api/status`, `/api/cost`, `/api/memory`, `/api/plan`, `/api/audit`.
 
 ### src/cli/ — CLI commands (3 modules)
@@ -161,7 +162,7 @@ Hook output formats per event type:
 - `dashboard.ts` — ASCII dashboard renderer.
 
 ### Plugin root — metadata and configuration
-- `.claude-plugin/plugin.json` — Plugin manifest (name, version 0.3.0, author, license, keywords)
+- `.claude-plugin/plugin.json` — Plugin manifest (name, version 0.4.0, author, license, keywords)
 - `settings.json` — Default agent (`code`), tool permissions
 - `agents/*.md` — 5 agent definitions (code, architect, debug, review, security-audit)
 - `commands/*.md` — 11 slash commands (status, plan, memory, audit, cost, health, mode, autonomy, stop, undo, ui)
@@ -213,6 +214,7 @@ For detailed documentation beyond this AI-facing reference:
 - 4-phase lifecycle: encode (createMemCell) → consolidate (Jaccard clustering) → decay (Ebbinghaus retention) → recall (BM25 + RRF + decay weighting)
 - MemCells have SHA-256 checksums; tampered cells detected via `verifyChecksum()`
 - MemCells have optional `importance` field (default 1.0) affecting decay rate
+- `importance: Infinity` → retention always 1.0 (architectural decisions that must never decay)
 - Decay: `retention(t) = e^(-(t/S)^0.8)` where S = importance * 7 days
 - Pruning: cells below 10% retention removed by `pruneDecayed()`
 - `applyDecayToScores()` in recall multiplies BM25 scores by retention
@@ -222,6 +224,8 @@ For detailed documentation beyond this AI-facing reference:
 - Consolidation appends facts to summary (not identity-map)
 - `loadMemCells()` validates JSON with `isMemCell()` type guard, skips invalid files
 - `getTemporaryStates()` filters expired entries (non-mutating)
+- `buildMemoryContext()` pipeline: loadMemCells → BM25 index → search → decay weighting → formatted markdown
+- SessionStart hook calls `buildMemoryContext("recent project context")` with fallback to cell count
 
 ### Hooks
 - 9 registered hook types in official nested plugin format
@@ -242,7 +246,7 @@ For detailed documentation beyond this AI-facing reference:
 
 ## Testing
 - Every `src/X/Y.ts` has corresponding `test/X/Y.test.ts`
-- 338 tests, 742 expect() calls, 0 failures, 47 test files
+- 381 tests, 808 expect() calls, 0 failures, 48 test files
 - Security tests are mandatory: blocklist, injection, output-guard, vault, policy, baseline, circuit-breaker, integrity, rate-limiter, cost-tracker
 - Integration test in `test/integration.test.ts` covers full pipeline
 - Always await async operations in tests (no fire-and-forget)
