@@ -16,6 +16,7 @@ const VALID_COMMANDS = new Set([
 	"undo",
 	"health",
 	"ui",
+	"rag",
 ]);
 
 export function parseCommand(input: string): KodoCommand | null {

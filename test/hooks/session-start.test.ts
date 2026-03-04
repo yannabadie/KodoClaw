@@ -75,14 +75,17 @@ describe("handleSessionStart", () => {
 		expect(result.additionalContext).toContain(". ");
 	});
 
-	test("returns empty context when no profile or cells exist", async () => {
+	test("returns only RAG context when no profile or cells exist", async () => {
 		const input: SessionStartInput = {
 			sessionId: "sess_start_004",
 			source: "startup",
 		};
 
 		const result = await handleSessionStart(input, dir);
-		expect(result.additionalContext).toBe("");
+		// No profile or memory, but RAG status is always included
+		expect(result.additionalContext).toContain("RAG");
+		expect(result.additionalContext).not.toContain("User profile:");
+		expect(result.additionalContext).not.toContain("Memory:");
 	});
 
 	test("ignores non-json files in cells directory", async () => {
@@ -111,7 +114,9 @@ describe("handleSessionStart", () => {
 		};
 
 		const result = await handleSessionStart(input, dir);
-		expect(result.additionalContext).toBe("");
+		// No profile traits, but RAG status is always included
+		expect(result.additionalContext).toContain("RAG");
+		expect(result.additionalContext).not.toContain("User profile:");
 	});
 
 	test("includes real memory context when valid cells exist", async () => {
@@ -203,6 +208,12 @@ describe("handleSessionStart", () => {
 		expect(result.additionalContext).toContain("Memory Context:");
 		// Score format is [X.XX]
 		expect(result.additionalContext).toMatch(/\[\d+\.\d{2}\]/);
+	});
+
+	test("includes RAG status in context", async () => {
+		const result = await handleSessionStart({ sessionId: "s1", source: "startup" }, dir);
+		// Should mention RAG in some form
+		expect(result.additionalContext).toContain("RAG");
 	});
 
 	test("combines profile with real memory context", async () => {

@@ -1,6 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { buildMemoryContext } from "../memory/builder";
+import { getRAGSetupStatus, loadRAGConfig } from "../rag/config";
 
 export interface SessionStartInput {
 	sessionId: string;
@@ -53,6 +54,20 @@ export async function handleSessionStart(
 		} catch {
 			// No cells directory yet
 		}
+	}
+
+	// Check RAG setup status
+	try {
+		const ragConfig = loadRAGConfig();
+		const ragStatus = getRAGSetupStatus(ragConfig);
+
+		if (ragStatus.geminiConfigured) {
+			parts.push(`RAG: Gemini fallback active (${ragStatus.geminiApiKey})`);
+		} else {
+			parts.push("RAG: No Gemini API key. Add GOOGLE_API_KEY to .env for reliable RAG fallback");
+		}
+	} catch {
+		// RAG config loading failed — not critical
 	}
 
 	return {

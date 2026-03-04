@@ -28,6 +28,12 @@ describe("parseCommand", () => {
 		expect(parseCommand("hello")).toBeNull();
 	});
 
+	test("parses rag command", () => {
+		const result = parseCommand("/kodo rag");
+		expect(result).not.toBeNull();
+		expect(result?.command).toBe("rag");
+	});
+
 	test("parses all recognized commands", () => {
 		const cmds = [
 			"status",
@@ -41,6 +47,7 @@ describe("parseCommand", () => {
 			"undo",
 			"health",
 			"ui",
+			"rag",
 		];
 		for (const c of cmds) {
 			expect(parseCommand(`/kodo ${c}`)).toEqual({ command: c, args: [] });
