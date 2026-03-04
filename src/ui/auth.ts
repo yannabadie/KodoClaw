@@ -35,11 +35,7 @@ export function createSessionToken(secret: string): string {
 	return `${payload}:${sig}`;
 }
 
-export function verifySessionToken(
-	token: string,
-	secret: string,
-	ttlMs = 86_400_000,
-): boolean {
+export function verifySessionToken(token: string, secret: string, ttlMs = 86_400_000): boolean {
 	const lastColon = token.lastIndexOf(":");
 	if (lastColon === -1) return false;
 	const payload = token.slice(0, lastColon);
