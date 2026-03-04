@@ -1,5 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { buildMemoryContext } from "../memory/builder";
 
 export interface SessionStartInput {
 	sessionId: string;
@@ -32,14 +33,26 @@ export async function handleSessionStart(
 		// No profile yet
 	}
 
-	// Count memory cells
+	// Recall ranked memory context via BM25 + decay pipeline
 	const cellsDir = join(baseDir, "memory", "cells");
+	let memoryContext = "";
 	try {
-		const files = await readdir(cellsDir);
-		const count = files.filter((f) => f.endsWith(".json")).length;
-		if (count > 0) parts.push(`Memory: ${count} episodic cells available`);
+		memoryContext = await buildMemoryContext(cellsDir, "recent project context");
 	} catch {
-		// No cells yet
+		// buildMemoryContext failed — fall through to count fallback
+	}
+
+	if (memoryContext) {
+		parts.push(`Memory Context:\n${memoryContext}`);
+	} else {
+		// Fall back to cell count when recall returns nothing
+		try {
+			const files = await readdir(cellsDir);
+			const count = files.filter((f) => f.endsWith(".json")).length;
+			if (count > 0) parts.push(`Memory: ${count} episodic cells available`);
+		} catch {
+			// No cells directory yet
+		}
 	}
 
 	return {

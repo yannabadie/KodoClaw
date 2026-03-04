@@ -3,6 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type SessionStartInput, handleSessionStart } from "../../src/hooks/session-start";
+import { computeChecksum } from "../../src/memory/memcell";
 
 describe("handleSessionStart", () => {
 	let dir: string;
@@ -111,5 +112,128 @@ describe("handleSessionStart", () => {
 
 		const result = await handleSessionStart(input, dir);
 		expect(result.additionalContext).toBe("");
+	});
+
+	test("includes real memory context when valid cells exist", async () => {
+		const cellsDir = join(dir, "memory", "cells");
+		await mkdir(cellsDir, { recursive: true });
+
+		// Create a valid MemCell with proper structure and checksum
+		const cell1 = {
+			id: "mc_test000001",
+			episode: "Fixed authentication bug in login flow",
+			facts: ["auth token was expiring too early", "increased TTL to 24 hours"],
+			tags: ["bugfix", "auth"],
+			timestamp: new Date().toISOString(),
+			importance: 1.0,
+			checksum: "",
+		};
+		cell1.checksum = computeChecksum(cell1);
+		await writeFile(join(cellsDir, "mc_test000001.json"), JSON.stringify(cell1), "utf-8");
+
+		const cell2 = {
+			id: "mc_test000002",
+			episode: "Deployed new API endpoint for project management",
+			facts: ["added REST endpoint for projects", "includes pagination support"],
+			tags: ["feature", "api"],
+			timestamp: new Date().toISOString(),
+			importance: 1.0,
+			checksum: "",
+		};
+		cell2.checksum = computeChecksum(cell2);
+		await writeFile(join(cellsDir, "mc_test000002.json"), JSON.stringify(cell2), "utf-8");
+
+		const input: SessionStartInput = {
+			sessionId: "sess_start_007",
+			source: "startup",
+		};
+
+		const result = await handleSessionStart(input, dir);
+		expect(result.additionalContext).toContain("Memory Context:");
+		// Should contain at least one recalled episode
+		expect(
+			result.additionalContext.includes("Fixed authentication bug") ||
+				result.additionalContext.includes("Deployed new API endpoint"),
+		).toBe(true);
+		// Should NOT contain the old count format
+		expect(result.additionalContext).not.toContain("episodic cells available");
+	});
+
+	test("falls back to count when valid cells exist but do not match query", async () => {
+		const cellsDir = join(dir, "memory", "cells");
+		await mkdir(cellsDir, { recursive: true });
+
+		// Create invalid cells (just empty JSON) that pass readdir count but fail isMemCell
+		await writeFile(join(cellsDir, "cell-1.json"), "{}", "utf-8");
+		await writeFile(join(cellsDir, "cell-2.json"), "{}", "utf-8");
+
+		const input: SessionStartInput = {
+			sessionId: "sess_start_008",
+			source: "startup",
+		};
+
+		const result = await handleSessionStart(input, dir);
+		// buildMemoryContext returns "" because isMemCell rejects {},
+		// so fallback counts the JSON files
+		expect(result.additionalContext).toContain("Memory: 2 episodic cells available");
+	});
+
+	test("memory context includes score brackets", async () => {
+		const cellsDir = join(dir, "memory", "cells");
+		await mkdir(cellsDir, { recursive: true });
+
+		const cell = {
+			id: "mc_test000003",
+			episode: "Refactored recent project context module",
+			facts: ["simplified the context assembly pipeline"],
+			tags: ["refactor", "context", "project"],
+			timestamp: new Date().toISOString(),
+			importance: 1.0,
+			checksum: "",
+		};
+		cell.checksum = computeChecksum(cell);
+		await writeFile(join(cellsDir, "mc_test000003.json"), JSON.stringify(cell), "utf-8");
+
+		const input: SessionStartInput = {
+			sessionId: "sess_start_009",
+			source: "startup",
+		};
+
+		const result = await handleSessionStart(input, dir);
+		expect(result.additionalContext).toContain("Memory Context:");
+		// Score format is [X.XX]
+		expect(result.additionalContext).toMatch(/\[\d+\.\d{2}\]/);
+	});
+
+	test("combines profile with real memory context", async () => {
+		const memDir = join(dir, "memory");
+		const cellsDir = join(memDir, "cells");
+		await mkdir(cellsDir, { recursive: true });
+
+		const profile = { stableTraits: { language: "TypeScript" } };
+		await writeFile(join(memDir, "profile.json"), JSON.stringify(profile), "utf-8");
+
+		const cell = {
+			id: "mc_test000004",
+			episode: "Updated recent project TypeScript configuration",
+			facts: ["enabled strict mode in tsconfig"],
+			tags: ["config", "project"],
+			timestamp: new Date().toISOString(),
+			importance: 1.0,
+			checksum: "",
+		};
+		cell.checksum = computeChecksum(cell);
+		await writeFile(join(cellsDir, "mc_test000004.json"), JSON.stringify(cell), "utf-8");
+
+		const input: SessionStartInput = {
+			sessionId: "sess_start_010",
+			source: "startup",
+		};
+
+		const result = await handleSessionStart(input, dir);
+		expect(result.additionalContext).toContain("User profile: language: TypeScript");
+		expect(result.additionalContext).toContain("Memory Context:");
+		// Both parts joined with ". "
+		expect(result.additionalContext).toContain(". ");
 	});
 });
