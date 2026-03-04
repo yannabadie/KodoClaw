@@ -40,6 +40,40 @@ describe("MilestoneLibrary", () => {
 		expect(plans.length).toBe(0);
 	});
 
+	test("TF-IDF ranks better than word overlap", async () => {
+		const plan1: Plan = {
+			task: "Add OAuth2 authentication flow",
+			milestones: [{ id: 1, goal: "Setup", status: "completed" }],
+			createdAt: new Date().toISOString(),
+		};
+		const plan2: Plan = {
+			task: "Add database migration scripts",
+			milestones: [{ id: 1, goal: "Setup", status: "completed" }],
+			createdAt: new Date().toISOString(),
+		};
+		await lib.archive(plan1);
+		await lib.archive(plan2);
+
+		const results = await lib.findSimilar("OAuth authentication");
+		expect(results.length).toBe(1);
+		expect(results[0]?.task).toContain("OAuth2");
+	});
+
+	test("findSimilar scores goals too, not just task title", async () => {
+		const plan: Plan = {
+			task: "Backend refactor",
+			milestones: [
+				{ id: 1, goal: "Migrate to PostgreSQL", status: "completed" },
+				{ id: 2, goal: "Add connection pooling", status: "completed" },
+			],
+			createdAt: new Date().toISOString(),
+		};
+		await lib.archive(plan);
+
+		const results = await lib.findSimilar("PostgreSQL migration");
+		expect(results.length).toBe(1);
+	});
+
 	test("finds similar past plans", async () => {
 		const plan: Plan = {
 			task: "Add OAuth2 authentication",
