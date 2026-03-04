@@ -27,6 +27,12 @@ describe("computeRetention", () => {
 		const now = Date.now();
 		expect(computeRetention(now + 1000, now)).toBe(1.0);
 	});
+
+	test("returns 1.0 for infinite importance (never expire)", () => {
+		const now = Date.now();
+		const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
+		expect(computeRetention(oneYearAgo, now, Number.POSITIVE_INFINITY)).toBe(1.0);
+	});
 });
 
 describe("pruneDecayed", () => {

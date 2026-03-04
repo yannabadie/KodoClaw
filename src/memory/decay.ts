@@ -29,6 +29,7 @@ export function computeRetention(
 ): number {
 	const elapsed = nowMs - timestampMs;
 	if (elapsed <= 0) return 1.0;
+	if (importance === Number.POSITIVE_INFINITY) return 1.0;
 
 	const stability = (config?.baseStabilityMs ?? BASE_STABILITY_MS) * Math.max(importance, 0.01);
 	const beta = config?.beta ?? BETA;
