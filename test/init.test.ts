@@ -31,9 +31,9 @@ describe("kodo init", () => {
 		expect(memContents).toContain("scenes");
 	});
 
-	test("creates default config.yaml", async () => {
+	test("creates default kodo.yaml", async () => {
 		await initKodo(dir);
-		const config = Bun.file(join(dir, "config.yaml"));
+		const config = Bun.file(join(dir, "kodo.yaml"));
 		expect(await config.exists()).toBe(true);
 	});
 

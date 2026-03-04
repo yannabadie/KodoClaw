@@ -29,7 +29,7 @@ export async function initKodo(baseDir: string): Promise<void> {
 	}
 
 	// Create default config if not exists
-	const configPath = join(baseDir, "config.yaml");
+	const configPath = join(baseDir, "kodo.yaml");
 	const configFile = Bun.file(configPath);
 	if (!(await configFile.exists())) {
 		await writeFile(configPath, DEFAULT_CONFIG, "utf-8");
