@@ -1,7 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
 	type UserPromptSubmitInput,
 	handleUserPromptSubmit,
+	persistLastPrompt,
 } from "../../src/hooks/user-prompt-submit";
 
 describe("handleUserPromptSubmit", () => {
@@ -72,5 +76,36 @@ describe("handleUserPromptSubmit", () => {
 		expect(result.decision).toBeUndefined();
 		expect(result.reason).toBeUndefined();
 		expect(result.additionalContext).toBeUndefined();
+	});
+});
+
+describe("persistLastPrompt", () => {
+	let dir: string;
+
+	beforeEach(async () => {
+		dir = await mkdtemp(join(tmpdir(), "kodo-prompt-"));
+	});
+
+	afterEach(async () => {
+		await rm(dir, { recursive: true, force: true });
+	});
+
+	test("writes prompt to memory/last-prompt.txt", async () => {
+		await persistLastPrompt("Help me refactor the auth module", dir);
+		const content = await readFile(join(dir, "memory", "last-prompt.txt"), "utf-8");
+		expect(content).toBe("Help me refactor the auth module");
+	});
+
+	test("truncates very long prompts to 500 chars", async () => {
+		const longPrompt = "x".repeat(1000);
+		await persistLastPrompt(longPrompt, dir);
+		const content = await readFile(join(dir, "memory", "last-prompt.txt"), "utf-8");
+		expect(content.length).toBe(500);
+	});
+
+	test("does not persist blocked prompts", async () => {
+		await persistLastPrompt("normal prompt", dir);
+		const content = await readFile(join(dir, "memory", "last-prompt.txt"), "utf-8");
+		expect(content).toBe("normal prompt");
 	});
 });

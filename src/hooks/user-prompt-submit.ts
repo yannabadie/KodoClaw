@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { scanForInjection } from "../security/injection";
 
 export interface UserPromptSubmitInput {
@@ -29,4 +31,16 @@ export function handleUserPromptSubmit(input: UserPromptSubmitInput): UserPrompt
 	}
 
 	return {};
+}
+
+/**
+ * Persist the user's prompt for task-driven memory recall.
+ * Called from cli.ts before injection scanning.
+ * Truncates to 500 chars to avoid excessive disk usage.
+ */
+export async function persistLastPrompt(prompt: string, baseDir: string): Promise<void> {
+	const memDir = join(baseDir, "memory");
+	await mkdir(memDir, { recursive: true });
+	const truncated = prompt.slice(0, 500);
+	await writeFile(join(memDir, "last-prompt.txt"), truncated, "utf-8");
 }
