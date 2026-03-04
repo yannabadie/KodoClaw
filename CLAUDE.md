@@ -5,9 +5,49 @@ Kodo is a Claude Code plugin providing intelligent memory, hierarchical
 planning, security, and NotebookLM RAG integration.
 98 TypeScript files (51 src + 47 test), ~7.5K LOC, Bun runtime.
 
+## Plugin surface
+
+### Manifest
+`.claude-plugin/plugin.json` — name, version (0.3.0), author, license, keywords.
+
+### Agents (5)
+Markdown files in `agents/` with YAML frontmatter (`name`, `description`) + system prompt.
+
+| Agent | Autonomy | Tools | Use case |
+|-------|----------|-------|----------|
+| `code` (default) | trusted | full | General coding |
+| `architect` | supervised | read-only | System design |
+| `debug` | trusted | full | Debugging |
+| `review` | guarded | read-only | Code review, OWASP |
+| `security-audit` | supervised | read-only | Security audit |
+
+### Slash commands (11)
+Markdown files in `commands/` invoked as `/kodo:<name>`.
+
+| Command | Description |
+|---------|-------------|
+| `status` | Mode, autonomy, memory count, plan, cost |
+| `plan` | Milestone roadmap (show/create/complete) |
+| `memory` | MemCells, MemScenes, profile summary |
+| `audit` | Recent audit log entries |
+| `cost` | Token usage, USD cost, budget |
+| `health` | Subsystem health checks |
+| `mode` | Switch active mode |
+| `autonomy` | Change autonomy level |
+| `stop` | Emergency kill-switch |
+| `undo` | Git snapshot rollback |
+| `ui` | Web dashboard launcher |
+
+### Skills (2)
+- `skills/kodo-context/SKILL.md` — Auto-invoked context about Kodo commands and configuration
+- `skills/security-check/SKILL.md` — OWASP compliance and security pattern verification
+
+### Settings
+`settings.json` — default agent (`code`), tool permissions.
+
 ## Architecture
 ```
-Plugin Surface (9 hooks, CLAUDE.md, slash commands)
+Plugin Surface (9 hooks, 5 agents, 11 commands, 2 skills)
     |
     v
 Mode Engine  <-->  Memory Engine  <-->  Policy Kernel
@@ -120,9 +160,32 @@ Hook output formats per event type:
 - `alerts.ts` — Anomaly checking against session metrics thresholds.
 - `dashboard.ts` — ASCII dashboard renderer.
 
+### Plugin root — metadata and configuration
+- `.claude-plugin/plugin.json` — Plugin manifest (name, version 0.3.0, author, license, keywords)
+- `settings.json` — Default agent (`code`), tool permissions
+- `agents/*.md` — 5 agent definitions (code, architect, debug, review, security-audit)
+- `commands/*.md` — 11 slash commands (status, plan, memory, audit, cost, health, mode, autonomy, stop, undo, ui)
+- `skills/kodo-context/SKILL.md` — Auto-invoked Kodo context skill
+- `skills/security-check/SKILL.md` — OWASP security check skill
+- `hooks/hooks.json` — 9 hook registrations (official nested plugin format)
+
 ### Root entry points
 - `src/index.ts` — `initKodo()`: creates directory structure + default config + vault.
 - `src/plugin.ts` — `handlePreToolUse()`, `handlePostToolUse()`: path blocking, risk classification, injection scanning, output guard. `extractPaths()` covers read/write/edit/glob/grep tools. `PostToolResult` includes `outputThreats: string[]`.
+
+## Documentation
+
+For detailed documentation beyond this AI-facing reference:
+
+- [Installation Guide](docs/INSTALL.md) — prerequisites, step-by-step setup, verification
+- [Quick Start](docs/QUICKSTART.md) — 5-minute first session walkthrough
+- [Hooks Reference](docs/HOOKS.md) — all 9 hook payload schemas with JSON examples
+- [Architecture](docs/ARCHITECTURE.md) — layer model, data flows, module map
+- [Memory System](docs/MEMORY.md) — MemCell, decay, BM25, recall pipeline
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — common problems and solutions
+- [Security](SECURITY.md) — OWASP coverage, threat model, encryption
+- [Contributing](CONTRIBUTING.md) — conventions, testing, commit workflow
+- [Changelog](CHANGELOG.md) — version history
 
 ## Key patterns
 

@@ -1,6 +1,13 @@
 {
   "name": "kodo",
-  "version": "0.1.0",
-  "description": "Intelligent memory, security, planning & RAG for Claude Code",
-  "entryPoint": "src/index.ts"
+  "version": "0.3.0",
+  "description": "Intelligent security, memory, and planning plugin for Claude Code",
+  "author": {
+    "name": "Yann Abadie",
+    "url": "https://github.com/yannabadie"
+  },
+  "homepage": "https://github.com/yannabadie/KodoClaw",
+  "repository": "https://github.com/yannabadie/KodoClaw",
+  "license": "MIT",
+  "keywords": ["security", "memory", "planning", "owasp", "injection-detection", "audit"]
 }

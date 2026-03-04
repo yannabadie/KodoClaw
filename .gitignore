@@ -4,3 +4,6 @@ dist/
 ## Runtime data directories (created at plugin root, not in src/)
 /audit/
 /memory/
+/plans/library/
+/rag-cache/
+/modes/

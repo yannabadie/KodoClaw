@@ -3,7 +3,7 @@
 Intelligent Claude Code plugin with memory, planning, security, and RAG.
 
 ```
-98 files  |  7,473 LOC  |  338 tests  |  2 deps  |  Bun + TypeScript
+98 files  |  7,473 LOC  |  338 tests  |  2 deps  |  5 agents  |  Bun + TypeScript
 ```
 
 ## What is Kodo?
@@ -38,25 +38,19 @@ bun run check
 
 ### Install as Claude Code plugin
 
-Copy `hooks/hooks.json` into your project's `.claude/settings.json` or merge the hooks section. The plugin uses `${CLAUDE_PLUGIN_ROOT}` for portable paths:
+Point Claude Code at the plugin directory:
 
-```json
-{
-  "description": "Kodo — intelligent memory, security, planning plugin",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          { "type": "command", "command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" PreToolUse" }
-        ]
-      }
-    ]
-  }
-}
+```bash
+claude --plugin-dir /path/to/kodo
 ```
 
-9 hook types registered: PreToolUse, PostToolUse, PostToolUseFailure, Stop, Notification, PreCompact, SessionStart, UserPromptSubmit, SessionEnd.
+Or copy `hooks/hooks.json` into your project's `.claude/settings.json`. The plugin uses `${CLAUDE_PLUGIN_ROOT}` for portable paths.
+
+This loads:
+- **9 hooks** — PreToolUse, PostToolUse, PostToolUseFailure, Stop, Notification, PreCompact, SessionStart, UserPromptSubmit, SessionEnd
+- **5 agents** — code (default), architect, debug, review, security-audit
+- **11 slash commands** — `/kodo:status`, `/kodo:plan`, `/kodo:memory`, etc.
+- **2 skills** — kodo-context (auto-invoked), security-check
 
 ## Architecture
 
@@ -139,6 +133,27 @@ Session lifecycle
 | Debug | `debug` | trusted | full | yes | bash, read, write, edit, glob, grep, agent |
 | Plan | `plan` | guarded | summary | yes | read, glob, grep, agent |
 | Review | `review` | guarded | summary | no | read, glob, grep |
+
+## Agents
+
+Agents are defined in `agents/*.md` and set the default behavior, autonomy level, and available tools. The default agent is `code` (configured in `settings.json`).
+
+| Agent | Autonomy | Tools | Description |
+|-------|----------|-------|-------------|
+| **code** | trusted | full | Default coding agent with planning and full memory |
+| **architect** | supervised | read-only | System design, dependency analysis, refactoring proposals |
+| **debug** | trusted | full | Systematic debugging with audit log access |
+| **review** | guarded | read-only | Code review focused on security, quality, OWASP |
+| **security-audit** | supervised | read-only | OWASP compliance audit, vulnerability checks |
+
+## Skills
+
+Skills are auto-invoked capabilities in `skills/`:
+
+| Skill | Description |
+|-------|-------------|
+| **kodo-context** | Auto-invoked context about Kodo commands, modes, and security rules |
+| **security-check** | OWASP compliance checklist: injection patterns, sensitive paths, shell risk, output guard, memory integrity |
 
 ### Custom modes
 
@@ -292,21 +307,23 @@ Library archives completed plans and finds similar past plans via word-overlap. 
 
 Cache: 7-day TTL, BM25 fuzzy matching (threshold 0.5), atomic writes.
 
-## CLI Commands
+## Slash Commands
+
+Defined in `commands/*.md`, invoked as `/kodo:<name>`:
 
 | Command | Description |
 |---------|-------------|
-| `/kodo status` | Current mode, autonomy, memory count |
-| `/kodo mode <slug>` | Switch mode |
-| `/kodo plan` | View milestone roadmap |
-| `/kodo memory` | Memory summary |
-| `/kodo audit` | Recent audit entries |
-| `/kodo cost` | Token cost tracking |
-| `/kodo autonomy <level>` | Change autonomy level |
-| `/kodo stop` | Emergency kill-switch |
-| `/kodo undo` | Restore last git snapshot |
-| `/kodo ui` | Open web dashboard |
-| `/kodo health` | Run health checks |
+| `/kodo:status` | Current mode, autonomy, memory count, plan, cost |
+| `/kodo:mode <slug>` | Switch mode |
+| `/kodo:plan [show\|create\|complete]` | View/manage milestone roadmap |
+| `/kodo:memory` | Memory summary (MemCells, MemScenes, profile) |
+| `/kodo:audit [count]` | Recent audit entries |
+| `/kodo:cost` | Token usage, USD cost, budget |
+| `/kodo:autonomy <level>` | Change autonomy level |
+| `/kodo:stop` | Emergency kill-switch (EU AI Act Art. 14) |
+| `/kodo:undo` | Git snapshot rollback |
+| `/kodo:ui` | Open web dashboard |
+| `/kodo:health` | Subsystem health checks |
 
 ## Web Dashboard
 
@@ -341,6 +358,21 @@ Localhost-only SPA on port 3700 with HMAC-SHA256 pairing authentication.
 | LLM05 | Improper Output Handling | Output guard, content redaction |
 | LLM07 | System Prompt Leakage | 10 extraction markers, anti-leakage armor |
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Installation Guide](docs/INSTALL.md) | Prerequisites, step-by-step setup, verification |
+| [Quick Start](docs/QUICKSTART.md) | 5-minute first session walkthrough |
+| [Hooks Reference](docs/HOOKS.md) | All 9 hook payload schemas with JSON examples |
+| [Architecture](docs/ARCHITECTURE.md) | Layer model, data flows, module map |
+| [Memory System](docs/MEMORY.md) | MemCell, decay, BM25, recall pipeline |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common problems and solutions |
+| [Security](SECURITY.md) | OWASP coverage, threat model, encryption |
+| [Contributing](CONTRIBUTING.md) | Conventions, testing, commit workflow |
+| [Changelog](CHANGELOG.md) | Version history |
+| [Design Document](docs/plans/2026-03-03-kodo-design.md) | Original architecture design and decisions |
+
 ## Development
 
 ```bash
@@ -361,6 +393,22 @@ bun run build
 
 ```
 kodo/
+├── .claude-plugin/
+│   └── plugin.json               — plugin manifest (v0.3.0)
+├── agents/                        — 5 agent definitions
+│   ├── code.md                    — default coding agent (trusted)
+│   ├── architect.md               — system design (supervised, read-only)
+│   ├── debug.md                   — debugging (trusted, full tools)
+│   ├── review.md                  — code review (guarded, read-only)
+│   └── security-audit.md         — OWASP audit (supervised, read-only)
+├── commands/                      — 11 slash commands (/kodo:<name>)
+│   ├── status.md, plan.md, memory.md, audit.md, cost.md, health.md
+│   ├── mode.md, autonomy.md, stop.md, undo.md, ui.md
+├── skills/
+│   ├── kodo-context/SKILL.md     — auto-invoked plugin context
+│   └── security-check/SKILL.md  — OWASP security check
+├── hooks/
+│   └── hooks.json                — 9 hook registrations
 ├── src/
 │   ├── security/      11 modules — policy kernel
 │   ├── memory/         7 modules — memory engine
@@ -374,11 +422,8 @@ kodo/
 │   ├── index.ts                  — plugin init
 │   └── plugin.ts                 — pre/post tool handlers
 ├── test/              47 test files mirroring src/
-├── hooks/
-│   └── hooks.json                — Claude Code hook registration (9 types)
-├── docs/
-│   └── plans/
-│       └── 2026-03-03-kodo-design.md — design document
+├── docs/plans/                   — design documents
+├── settings.json                 — default agent + permissions
 ├── CLAUDE.md                     — AI instructions
 ├── biome.json                    — lint/format config
 ├── tsconfig.json                 — TypeScript strict config
