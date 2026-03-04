@@ -3,18 +3,21 @@
 Intelligent Claude Code plugin with memory, planning, security, and RAG.
 
 ```
-88 files  |  6,145 LOC  |  266 tests  |  2 deps  |  Bun + TypeScript
+98 files  |  7,473 LOC  |  338 tests  |  2 deps  |  Bun + TypeScript
 ```
 
 ## What is Kodo?
 
-Kodo is a [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code) that gives Claude persistent memory, hierarchical planning, a security kernel, and NotebookLM RAG integration. It runs as a set of hooks that intercept every tool call, classify risk, scan for injection, and build context-aware system prompts.
+Kodo is a [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code) that gives Claude persistent memory, hierarchical planning, a security kernel, and NotebookLM RAG integration. It runs as a set of 9 hooks that intercept every tool call, classify risk, scan for injection, guard output, and build context-aware system prompts.
 
 **Key capabilities:**
-- Remembers facts across sessions (episodic memory with BM25 search)
+- Remembers facts across sessions (episodic memory with BM25 search + importance decay)
 - Plans multi-step tasks with milestone tracking
 - Blocks dangerous commands and sensitive file access
-- Detects prompt injection in real-time (Aho-Corasick scanner)
+- Detects prompt injection in real-time (Aho-Corasick scanner, 44 markers)
+- Guards LLM output against XSS, code injection, SQL injection (ASI05)
+- Scans user prompts before Claude processes them (UserPromptSubmit hook)
+- Defends against system prompt extraction attacks (LLM07)
 - Encrypts secrets at rest (XChaCha20-Poly1305)
 - Queries NotebookLM for domain-specific context
 - Tracks token costs and enforces budgets
@@ -35,27 +38,32 @@ bun run check
 
 ### Install as Claude Code plugin
 
-Copy `hooks/hooks.json` into your project's `.claude/settings.json` or merge the hooks section:
+Copy `hooks/hooks.json` into your project's `.claude/settings.json` or merge the hooks section. The plugin uses `${CLAUDE_PLUGIN_ROOT}` for portable paths:
 
 ```json
 {
+  "description": "Kodo — intelligent memory, security, planning plugin",
   "hooks": {
-    "PreToolUse": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts PreToolUse" }],
-    "PostToolUse": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts PostToolUse" }],
-    "Stop": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts Stop" }],
-    "Notification": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts Notification" }],
-    "PreCompact": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts PreCompact" }],
-    "SessionEnd": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts SessionEnd" }]
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" PreToolUse" }
+        ]
+      }
+    ]
   }
 }
 ```
+
+9 hook types registered: PreToolUse, PostToolUse, PostToolUseFailure, Stop, Notification, PreCompact, SessionStart, UserPromptSubmit, SessionEnd.
 
 ## Architecture
 
 ```
                     ┌─────────────────────────────────┐
                     │      Plugin Surface              │
-                    │  hooks.json · CLAUDE.md · CLI    │
+                    │  9 hooks · CLAUDE.md · CLI       │
                     └──────────┬──────────────────────┘
                                │
             ┌──────────────────┼──────────────────────┐
@@ -65,14 +73,15 @@ Copy `hooks/hooks.json` into your project's `.claude/settings.json` or merge the
      │             │   │             │   │                       │
      │ 6 built-in  │   │ MemCell     │   │ Risk Classifier      │
      │ + custom    │   │ MemScene    │   │ Injection Scanner     │
-     │   YAML      │   │ BM25 Index  │   │ Blocklist             │
-     │             │   │ Stemmer     │   │ Audit Log             │
-     │ Planner     │   │ Profile     │   │ Vault (XChaCha20)     │
-     │ Hints       │   │ Recall/RRF  │   │ Circuit Breaker       │
-     │ Library     │   │ RAG Cache   │   │ Rate Limiter          │
-     │             │   │             │   │ Cost Tracker           │
-     │ Context     │   │             │   │ Baseline Anomaly       │
-     │ Assembler   │   │             │   │ Integrity Verifier     │
+     │   YAML      │   │ BM25 Index  │   │ Output Guard (ASI05)  │
+     │             │   │ Stemmer     │   │ Blocklist             │
+     │ Planner     │   │ Decay       │   │ Audit Log             │
+     │ Hints       │   │ Profile     │   │ Vault (XChaCha20)     │
+     │ Library     │   │ Recall/RRF  │   │ Circuit Breaker       │
+     │             │   │ RAG Cache   │   │ Rate Limiter          │
+     │ Context     │   │             │   │ Cost Tracker           │
+     │ Assembler   │   │             │   │ Baseline Anomaly       │
+     │             │   │             │   │ Integrity Verifier     │
      └─────────────┘   └─────────────┘   └────────────────────────┘
 ```
 
@@ -81,31 +90,43 @@ Copy `hooks/hooks.json` into your project's `.claude/settings.json` or merge the
 Every Claude Code tool call flows through this pipeline:
 
 ```
-User prompt → Claude selects tool
-                    │
-            ┌───────▼────────┐
-            │  PreToolUse    │  ← Reads JSON from stdin
-            │                │
-            │ 1. Extract paths from tool params
-            │ 2. Check against sensitive path blocklist
-            │ 3. Classify shell command risk level
-            │ 4. Apply autonomy policy matrix
-            │                │
-            │  Output: hookSpecificOutput
-            │  { permissionDecision: allow|deny|ask }
-            └───────┬────────┘
-                    │
-            Tool executes (or is blocked)
-                    │
-            ┌───────▼────────┐
-            │  PostToolUse   │
-            │                │
-            │ 1. Scan output for injection patterns
-            │ 2. Normalize Unicode homoglyphs
-            │ 3. Strip zero-width characters
-            │ 4. Redact confidential content
-            │ 5. Return injection score + sanitized output
-            └────────────────┘
+User prompt
+    │
+    ├── UserPromptSubmit ── Injection scan → block/warn/allow
+    │
+    ▼
+Claude selects tool
+    │
+    ├── PreToolUse
+    │     1. Extract paths from tool params
+    │     2. Check against sensitive path blocklist
+    │     3. Classify shell command risk level
+    │     4. Apply autonomy policy matrix
+    │     → hookSpecificOutput: allow/deny/ask
+    │     → or: { continue: false } for kill switch
+    │
+    ▼
+Tool executes (or is blocked)
+    │
+    ├── PostToolUse
+    │     1. Scan output for injection patterns (44 markers)
+    │     2. Normalize Unicode homoglyphs
+    │     3. Strip zero-width characters
+    │     4. Redact confidential content
+    │     5. Guard output for XSS/SQL/code injection (11 patterns)
+    │     → decision: "block" or additionalContext warning
+    │
+    ├── PostToolUseFailure (on error)
+    │     → Log failure to audit JSONL
+    │
+    ▼
+Session lifecycle
+    │
+    ├── SessionStart → Load profile + memory context
+    ├── PreCompact → Memory checkpoint
+    ├── Stop → Audit summary
+    ├── Notification → Alert logging
+    └── SessionEnd → Final audit record
 ```
 
 ## Modes
@@ -121,7 +142,7 @@ User prompt → Claude selects tool
 
 ### Custom modes
 
-Create YAML files in `~/.kodo/modes/`:
+Create YAML files in `~/.kodo/modes/`. Invalid autonomy values and built-in slug conflicts are rejected:
 
 ```yaml
 name: Security Audit
@@ -132,7 +153,6 @@ memory: full
 planning: true
 instructions: |
   Focus on OWASP Top 10 vulnerabilities.
-  Check for injection, XSS, CSRF, and auth issues.
 allowedTools:
   - read
   - glob
@@ -156,92 +176,101 @@ Critical commands are **always blocked**, even in autonomous mode.
 
 | Risk | Examples |
 |------|----------|
-| **critical** | `rm -rf /`, `chmod 777`, `curl \| sh`, `python -c`, `node -e`, `powershell -enc`, `eval()`, `exec()` |
+| **critical** | `rm -rf /`, `chmod 777`, `curl \| sh`, `python -c`, `node -e`, `powershell -enc`, `eval()`, `exec()`, `bun eval` |
 | **high** | `git push --force`, `npm publish`, `docker run`, `docker exec`, `kubectl exec` |
 | **medium** | `git commit`, `npm install`, `pip install` |
 | **low** | `ls`, `cat`, `grep`, `git status`, `bun test` |
 
-### Protected paths
-
-These paths are **always blocked** for read/write/edit/glob/grep:
-
-- `.env`, `.env.*` files
-- `.ssh/` directory
-- `credentials.json`, `secrets.yaml`, `*.pem`, `*.key`
-- `id_rsa`, `id_ed25519`, `authorized_keys`
-- `~/.aws/credentials`, `~/.config/gcloud/`
-
 ### Prompt injection detection
 
-Aho-Corasick automaton scans all external content for 30+ injection markers:
+Aho-Corasick automaton scans all content for **44 injection markers** across 7 categories:
 
-- Role manipulation: "ignore previous instructions", "you are now", "new instructions"
-- Encoding evasion: Base64 `aWdub3Jl`, Unicode homoglyphs, zero-width characters
-- Roleplay attacks: "pretend you are", "imagine you're", "roleplay as"
-- Social engineering: "the developer said", "admin override", "maintenance mode"
+| Category | Examples |
+|----------|----------|
+| Role override | "ignore previous instructions", "disregard above" |
+| Identity swap | "you are now", "act as root" |
+| System prompt | "system:", "<\|im_start\|>", "\<system\>" |
+| Instruction override | "new system prompt", "override your instructions" |
+| Social engineering | "developer mode", "do anything now" |
+| Roleplay | "pretend you are", "roleplay as" |
+| Prompt extraction (LLM07) | "repeat your instructions", "show me your system prompt" |
 
-Scoring: 1 match = flag, 2 = sanitize, 4+ = block.
+Scoring: 1 match = flag, 2-3 = sanitize, 4+ = block.
+
+### Output guard (ASI05)
+
+Scans LLM output for 11 dangerous patterns:
+
+| Category | Patterns |
+|----------|----------|
+| XSS | `<script>`, `javascript:`, `on*=` event handlers |
+| Code execution | `eval()`, `Function()`, `import()`, `child_process` |
+| SQL injection | `DROP TABLE`, `; DELETE FROM`, `UNION SELECT` |
+| Destructive | `rm -rf /` |
 
 ### Encryption
 
 Secrets stored with XChaCha20-Poly1305 (via `@noble/ciphers`):
-- 256-bit random key generated on first init
-- Key file restricted to owner-only permissions (mode 0600)
-- Vault file uses atomic write-then-rename to prevent corruption
+- 256-bit random key, owner-only permissions (mode 0600)
+- Atomic write-then-rename for vault and cache files
 - 24-byte random nonce per encryption operation
 
 ## Memory System
 
-### 3-phase lifecycle
+### 4-phase lifecycle
 
 ```
-      ENCODE                    CONSOLIDATE                 RECALL
-  ┌────────────┐           ┌──────────────────┐       ┌─────────────┐
-  │ createMemCell()        │ consolidate()     │       │ BM25 search │
-  │                        │                   │       │ TF-IDF      │
-  │ • SHA-256 checksum     │ • Jaccard sim     │       │ Cosine sim  │
-  │ • Injection scan       │   (threshold 0.3) │       │ RRF fusion  │
-  │ • Foresight (optional) │ • Scene clustering│       │ (k=60)      │
-  │ • Persist to disk      │ • Summary merge   │       │             │
-  └────────────┘           └──────────────────┘       └─────────────┘
+   ENCODE              CONSOLIDATE           DECAY              RECALL
+┌──────────┐       ┌───────────────┐    ┌──────────┐      ┌─────────────┐
+│createMemCell()   │ consolidate() │    │ decay.ts │      │ BM25 search │
+│                  │               │    │          │      │ TF-IDF      │
+│• SHA-256 hash    │• Jaccard sim  │    │• e^(-t/S)│      │ Cosine sim  │
+│• Injection scan  │  (≥0.3)       │    │• β=0.8   │      │ RRF (k=60)  │
+│• Importance      │• Scene cluster│    │• Prune   │      │ × retention │
+│  (default 1.0)   │• Summary merge│    │  <10%    │      │             │
+│• Type guard      │               │    │          │      │             │
+└──────────┘       └───────────────┘    └──────────┘      └─────────────┘
 ```
 
 **MemCell** — Atomic memory unit:
-- `episode`: What happened (natural language)
-- `facts[]`: Extracted key facts
-- `tags[]`: Categorical tags for clustering
-- `foresight?`: Predictive note with expiry date
+- `episode`: What happened
+- `facts[]`: Key facts extracted
+- `tags[]`: Categorical tags
+- `importance?`: Decay weight (0.0-1.0+, default 1.0)
+- `foresight?`: Predictive note with expiry
 - `checksum`: SHA-256 for tamper detection
 
-**MemScene** — Cluster of related MemCells:
-- Grouped by Jaccard tag similarity (>= 0.3)
-- Summary built from accumulated facts
-- Crypto-safe IDs via `randomUUID()`
+**Decay** — FadeMem-inspired Ebbinghaus retention:
+```
+retention(t) = e^(-(t/S)^β)
+S = importance × 7 days
+β = 0.8 (sub-linear, gentler than exponential)
+```
+- importance=2.0 → decays 2x slower
+- importance=0.5 → decays 2x faster
+- Below 10% retention → pruned
 
-**BM25 Index** — Full-text search:
-- Porter stemming reduces morphological variants ("authentication" matches "authenticated")
-- 88 English stop words filtered out
-- Serializable to/from JSON for persistence
+**BM25 Index** — Full-text search with Porter stemming:
+- 88 English stop words filtered
+- `-ation` stems to `-ate` (e.g., "automation" → "automate")
+- Serializable to/from JSON
 
 ### User profile
-
-Tracks stable traits and temporary states:
 
 ```yaml
 stableTraits:
   stack: "TypeScript, Bun"
   style: "TDD, small commits"
-  language: "French"
 
 temporaryStates:
   focus:
     value: "refactoring auth module"
-    expires: "2026-03-10"
+    expires: "2026-03-10"  # auto-filtered after expiry
 ```
 
 ## Planning
 
-Milestone-based hierarchical planner:
+Milestone-based hierarchical planner with archive and similarity search:
 
 ```
 Plan: "Add user authentication"
@@ -251,25 +280,17 @@ Plan: "Add user authentication"
 └── [pending] Write integration tests
 ```
 
-Features:
-- `createPlan(task, goals)` — Create milestone roadmap
-- `generateHint(milestone, context)` — Contextual step-by-step hints
-- `MilestoneLibrary` — Archive past plans for similarity search
+Library archives completed plans and finds similar past plans via word-overlap. Corrupt JSON files are skipped gracefully.
 
 ## NotebookLM RAG
 
-Three connector strategies (auto-detected):
+| Strategy | Method | Circuit Breaker |
+|----------|--------|-----------------|
+| MCP | `notebooklm-mcp` server | 3 failures → open (60s) |
+| Python | `notebooklm-py` library | 3 failures → open (60s) |
+| API | Google Enterprise API | 3 failures → open (60s) |
 
-| Strategy | Method | Requirements |
-|----------|--------|--------------|
-| MCP | `notebooklm-mcp` server | MCP server configured |
-| Python | `notebooklm-py` library | Python + notebooklm package |
-| API | Google Enterprise API | API key in vault |
-
-Features:
-- Circuit breaker: 3 failures → open (60s cooldown)
-- Cache: 7-day TTL with BM25 fuzzy matching (threshold 0.5)
-- Stable hash IDs (SHA-256) for cache entries
+Cache: 7-day TTL, BM25 fuzzy matching (threshold 0.5), atomic writes.
 
 ## CLI Commands
 
@@ -289,53 +310,41 @@ Features:
 
 ## Web Dashboard
 
-Localhost-only SPA served on port 3700 with HMAC-SHA256 pairing authentication.
+Localhost-only SPA on port 3700 with HMAC-SHA256 pairing authentication.
 
-```
-GET /            → Dashboard HTML
-GET /api/status  → { mode, autonomy, memoryCount, planProgress }
-GET /api/cost    → { sessionCost, dailyCost }
-GET /api/memory  → { cells, scenes }
-GET /api/plan    → { milestones, progress }
-GET /api/audit   → { entries }
-```
-
-Security:
 - Bound to `127.0.0.1` only (never `0.0.0.0`)
-- All `/api/*` routes require valid session token
-- Pairing tokens expire (configurable TTL)
+- Prefix-safe Bearer token extraction
 - Timing-safe HMAC comparison with hex validation
+- API routes: `/api/status`, `/api/cost`, `/api/memory`, `/api/plan`, `/api/audit`
 
-## Context Assembly
+## OWASP Compliance
 
-6-step pipeline with 3000-token budget (12K chars):
+### Agentic Top 10 (2026)
 
-1. Mode instructions (highest priority)
-2. User profile context
-3. Memory context (MemCells + Scenes)
-4. RAG context (NotebookLM answers)
-5. Plan context (milestones + hints)
-6. Truncation to budget
-
-Content is sanitized (injection scan + confidential redaction) before inclusion.
-
-## OWASP Agentic 2026 Compliance
-
-| ID | Threat | Kodo Mitigation |
-|----|--------|-----------------|
-| ASI01 | Prompt Injection | Aho-Corasick scanner, homoglyph normalization, zero-width stripping |
+| ID | Threat | Mitigation |
+|----|--------|------------|
+| ASI01 | Agent Goal Hijack | 44-marker Aho-Corasick scanner, homoglyph normalization, zero-width stripping, user prompt scanning |
 | ASI02 | Tool Misuse | Risk classifier, 4-level policy matrix, path blocklist |
-| ASI03 | Excessive Authority | Mode-specific tool restrictions, autonomy levels |
-| ASI04 | Skill Integrity | SHA-256 manifest verification |
-| ASI06 | Memory Poisoning | MemCell checksums, injection scanning on writes |
+| ASI03 | Identity & Privilege Abuse | Mode-specific tool restrictions, autonomy validation |
+| ASI04 | Supply Chain Vulnerabilities | SHA-256 manifest verification |
+| ASI05 | Unexpected Code Execution | Output guard (11 patterns: XSS, eval, SQL, rm -rf) |
+| ASI06 | Memory & Context Poisoning | MemCell checksums, injection scan on writes, type guard |
 | ASI08 | Cascading Failures | Circuit breaker on RAG connector |
-| ASI09 | Insufficient Logging | Append-only JSONL audit, daily rotation |
-| ASI10 | Anomaly Detection | Behavioral baseline, kill switch at 2x threshold |
+| ASI09 | Human-Agent Trust Exploitation | Append-only JSONL audit, failure logging |
+| ASI10 | Rogue Agents | Behavioral baseline, kill switch at 2x threshold |
+
+### LLM Top 10 (2025)
+
+| ID | Threat | Mitigation |
+|----|--------|------------|
+| LLM01 | Prompt Injection | Same as ASI01 |
+| LLM05 | Improper Output Handling | Output guard, content redaction |
+| LLM07 | System Prompt Leakage | 10 extraction markers, anti-leakage armor |
 
 ## Development
 
 ```bash
-# Run tests (266 tests, 603 assertions)
+# Run tests (338 tests, 742 assertions)
 bun test
 
 # Lint & format check (zero errors required)
@@ -353,20 +362,23 @@ bun run build
 ```
 kodo/
 ├── src/
-│   ├── security/      10 modules — policy kernel
-│   ├── memory/         6 modules — memory engine
+│   ├── security/      11 modules — policy kernel
+│   ├── memory/         7 modules — memory engine
 │   ├── modes/          9 modules — mode system
 │   ├── planning/       3 modules — milestone planner
 │   ├── context/        3 modules — prompt assembly
 │   ├── rag/            2 modules — NotebookLM connector
-│   ├── hooks/          5 modules — hook handlers
+│   ├── hooks/          8 modules — hook handlers
 │   ├── ui/             3 modules — web dashboard
 │   ├── cli/            3 modules — CLI commands
 │   ├── index.ts                  — plugin init
 │   └── plugin.ts                 — pre/post tool handlers
-├── test/              42 test files mirroring src/
+├── test/              47 test files mirroring src/
 ├── hooks/
-│   └── hooks.json                — Claude Code hook registration
+│   └── hooks.json                — Claude Code hook registration (9 types)
+├── docs/
+│   └── plans/
+│       └── 2026-03-03-kodo-design.md — design document
 ├── CLAUDE.md                     — AI instructions
 ├── biome.json                    — lint/format config
 ├── tsconfig.json                 — TypeScript strict config
@@ -382,34 +394,15 @@ kodo/
 
 No other runtime dependencies allowed without design review.
 
-Dev dependencies: `@biomejs/biome` ^1.9.0, `@types/bun`.
-
 ### Testing conventions
 
 - Every `src/X/Y.ts` has a corresponding `test/X/Y.test.ts`
 - Tests use Bun's built-in test runner (`bun:test`)
+- All hook payloads validated; invalid payloads exit code 2
+- JSON from disk validated with type guards
 - Temp directories: `mkdtemp(join(tmpdir(), "kodo-<module>-"))`
-- Cleanup: `rm(dir, { recursive: true, force: true })` in `afterEach`
+- Cleanup: `rm(dir, { recursive: true, force: true })`
 - Always `await` async operations (no fire-and-forget)
-- Security tests are mandatory for any security module change
-
-## Configuration
-
-Default config (`~/.kodo/config.yaml`):
-
-```yaml
-# Kodo Configuration
-autonomy: trusted
-default_mode: code
-ui_port: 3700
-```
-
-Runtime data directories (created at plugin root, gitignored):
-- `audit/` — Daily JSONL audit logs
-- `memory/` — MemCells, MemScenes, profile, compaction checkpoints
-- `plans/` — Archived milestone plans
-- `rag-cache/` — NotebookLM query cache
-- `modes/` — Custom mode YAML files
 
 ## License
 

@@ -1,8 +1,8 @@
 # Kodo Design Document
 
-> **Status:** Implemented (v0.1.0)
+> **Status:** Implemented (v0.3.0)
 > **Created:** 2026-03-03
-> **Updated:** 2026-03-04
+> **Updated:** 2026-03-04 (Wave 3)
 
 ## 1. Goal
 
@@ -82,55 +82,60 @@ Layer 2: Infrastructure
 
 ```
 src/
-├── security/          Policy kernel
+├── security/          Policy kernel (11 modules)
 │   ├── vault.ts         XChaCha20-Poly1305 encrypted KV store
 │   ├── policy.ts        Risk classification + autonomy matrix
-│   ├── blocklist.ts     Sensitive path + content blocking
-│   ├── injection.ts     Aho-Corasick prompt injection scanner
+│   ├── blocklist.ts     Sensitive path + content blocking (flag-preserving redaction)
+│   ├── injection.ts     Aho-Corasick scanner (44 markers, 7 categories)
+│   ├── output-guard.ts  LLM output scanning (ASI05: XSS, eval, SQL, rm -rf)
 │   ├── audit.ts         Append-only JSONL audit log
-│   ├── baseline.ts      Behavioral anomaly detection
+│   ├── baseline.ts      Behavioral anomaly detection (bounded event window)
 │   ├── circuit-breaker.ts  Cascading failure prevention
 │   ├── cost-tracker.ts  Token usage + budget enforcement
 │   ├── rate-limiter.ts  Sliding window rate limiter
 │   └── integrity.ts     SHA-256 skill file verification
 │
-├── memory/            Memory engine
-│   ├── memcell.ts       Episodic memory with checksums
+├── memory/            Memory engine (7 modules)
+│   ├── memcell.ts       Episodic memory with checksums + importance + type guard
 │   ├── memscene.ts      Scene clustering (Jaccard similarity)
-│   ├── profile.ts       User traits + temporary states
-│   ├── recall.ts        Cosine similarity, RRF, TF-IDF
+│   ├── profile.ts       User traits + temporary states (non-mutating expiry filter)
+│   ├── recall.ts        Cosine similarity, RRF, TF-IDF + decay-weighted scoring
 │   ├── bm25.ts          Full-text search index
-│   └── stemmer.ts       Porter stemmer + stop words
+│   ├── stemmer.ts       Porter stemmer + stop words
+│   └── decay.ts         FadeMem-inspired Ebbinghaus retention curve
 │
 ├── modes/             Mode engine
 │   ├── base-mode.ts     Abstract mode class
 │   ├── detector.ts      Heuristic mode detection
-│   ├── loader.ts        Custom YAML mode loader
+│   ├── loader.ts        Custom YAML mode loader (validates autonomy + slug)
 │   └── built-in/        6 built-in modes
 │
 ├── planning/          Hierarchical planner
 │   ├── planner.ts       Milestone CRUD
 │   ├── hints.ts         Contextual step hints
-│   └── library.ts       Plan archive + similarity search
+│   └── library.ts       Plan archive + similarity search (per-file error handling)
 │
 ├── context/           System prompt assembly
-│   ├── assembler.ts     Token budget pipeline (3K tokens)
+│   ├── assembler.ts     Token budget pipeline (3K tokens) + anti-leakage armor
 │   ├── sanitizer.ts     Injection scan + redaction
 │   └── sufficiency.ts   Context completeness check
 │
 ├── rag/               NotebookLM RAG
 │   ├── connector.ts     Multi-strategy connector + circuit breaker
-│   └── cache.ts         7-day TTL cache with BM25 fuzzy match
+│   └── cache.ts         7-day TTL cache with BM25 fuzzy match + atomic writes
 │
-├── hooks/             Hook handlers
-│   ├── cli.ts           Main dispatcher (stdin/stdout JSON)
+├── hooks/             Hook handlers (8 modules, 9 hook types)
+│   ├── cli.ts           Main dispatcher — 9 hook types, 9 validators, snake_case normalization
+│   ├── session-start.ts Profile + memory context loader
+│   ├── user-prompt-submit.ts  User prompt injection scanner
+│   ├── post-tool-failure.ts   Tool failure audit logger
 │   ├── stop.ts          Session stop handler
 │   ├── notification.ts  Alert logging
 │   ├── precompact.ts    Memory checkpoint
 │   └── session-end.ts   Session end audit
 │
 ├── ui/                Web dashboard
-│   ├── server.ts        HTTP server (127.0.0.1 only)
+│   ├── server.ts        HTTP server (127.0.0.1 only, prefix-safe auth)
 │   ├── auth.ts          HMAC-SHA256 tokens
 │   └── routes.ts        REST API endpoints
 │
@@ -140,7 +145,7 @@ src/
 │   └── dashboard.ts     ASCII dashboard
 │
 ├── index.ts           Plugin initialization
-└── plugin.ts          Pre/post tool use handlers
+└── plugin.ts          Pre/post tool use handlers + output guard
 ```
 
 ## 4. Security Design
@@ -149,11 +154,13 @@ src/
 
 | Threat | Attack Vector | Mitigation |
 |--------|--------------|------------|
-| Prompt injection | Malicious content in tool output | Aho-Corasick scanner with 30+ markers |
+| Prompt injection | Malicious content in tool output or user prompt | Aho-Corasick scanner (44 markers), UserPromptSubmit hook |
 | Unicode evasion | Cyrillic lookalikes, zero-width chars | Homoglyph normalization + ZW stripping |
-| Memory poisoning | Injected facts via external content | Checksum verification + injection scan on writes |
+| Prompt extraction | "Repeat your instructions" | 10 extraction markers + anti-leakage armor (LLM07) |
+| Memory poisoning | Injected facts via external content | Checksum verification + injection scan on writes + type guard |
 | Secret exfiltration | Reading .env, .ssh, credentials | Sensitive path blocklist on all file tools |
 | Command injection | Dangerous shell commands | 4-tier risk classifier + policy matrix |
+| Code execution via output | XSS, eval, SQL in LLM output | Output guard (11 patterns, ASI05) |
 | Cascading failure | External service outage | Circuit breaker (threshold=3, reset=60s) |
 | Resource exhaustion | Token bombing | Cost tracker + budget limits |
 | Skill tampering | Modified skill files | SHA-256 manifest integrity checks |
@@ -226,10 +233,12 @@ interface MemCell {
   timestamp: string;      // ISO 8601
   foresight?: Foresight;  // Predictive note with expiry
   checksum: string;       // SHA-256 of canonical form
+  importance?: number;    // 0.0-1.0+, default 1.0, affects decay rate
 }
 ```
 
-Checksum computed over `{ episode, facts (sorted), tags (sorted) }` to detect tampering.
+Checksum computed over `{ episode, facts (sorted), tags (sorted), importance? }` to detect tampering.
+`isMemCell()` type guard validates JSON from disk before accepting (rejects invalid files silently).
 
 ### 5.2 MemScene Consolidation
 
@@ -260,27 +269,55 @@ Query
           │
           ▼
       Fused ranking
+          │
+          ▼
+      × retention score (decay weighting)
+          │
+          ▼
+      Final ranking
 ```
 
-### 5.4 BM25 Tokenization
+### 5.4 Memory Decay (FadeMem-inspired)
+
+Ebbinghaus retention curve with importance weighting:
 
 ```
-Input: "The authentication system handles user sessions"
+retention(t) = e^(-(t/S)^β)
+
+Where:
+  t = elapsed time since creation
+  S = importance × BASE_STABILITY (7 days)
+  β = 0.8 (sub-linear, gentler than pure exponential)
+```
+
+| importance | Effective half-life | Use case |
+|------------|-------------------|----------|
+| 0.5 | ~3.5 days | Transient context |
+| 1.0 | ~7 days | Standard facts |
+| 2.0 | ~14 days | Critical decisions |
+
+Pruning: cells below 10% retention removed by `pruneDecayed()`.
+`applyDecayToScores()` multiplies BM25 scores by retention factors in the recall pipeline.
+
+### 5.5 BM25 Tokenization
+
+```
+Input: "The automation system handles user sessions"
   │
   ▼ lowercase
-"the authentication system handles user sessions"
+"the automation system handles user sessions"
   │
   ▼ split on \W+
-["the", "authentication", "system", "handles", "user", "sessions"]
+["the", "automation", "system", "handles", "user", "sessions"]
   │
   ▼ filter stop words (88 words: "the" removed)
-["authentication", "system", "handles", "user", "sessions"]
+["automation", "system", "handles", "user", "sessions"]
   │
-  ▼ Porter stemming
-["authenticat", "system", "handl", "user", "session"]
+  ▼ Porter stemming (-ation before -tion for correct ordering)
+["automate", "system", "handl", "user", "session"]
 ```
 
-This enables morphological matching: "authenticated" and "authentication" both stem to "authenticat".
+This enables morphological matching: "automation" and "automate" both stem to "automate".
 
 ## 6. Mode Design
 
@@ -306,15 +343,18 @@ abstract class BaseMode {
 
 ```yaml
 name: string           # Display name
-slug: string           # Unique identifier
+slug: string           # Unique identifier (must not conflict with built-ins)
 extends?: BuiltInSlug  # Inherit from built-in
-autonomy?: AutonomyLevel
+autonomy?: AutonomyLevel  # Validated: guarded|supervised|trusted|autonomous
 memory?: "summary" | "full"
 planning?: boolean
 notebook_id?: string
 instructions: string   # System prompt additions
 allowedTools?: string[]
 ```
+
+Validation: invalid `autonomy` values are rejected. Slugs conflicting with built-ins
+(code, architect, ask, debug, plan, review) are rejected.
 
 ### 6.3 Mode Detection
 
@@ -351,20 +391,26 @@ All context content passes through:
 
 ### 8.1 Registration
 
-`hooks/hooks.json` registers 6 hook types with wildcard matcher:
+`hooks/hooks.json` registers 9 hook types using the official nested plugin format with `${CLAUDE_PLUGIN_ROOT}`:
 
 ```json
 {
+  "description": "Kodo — intelligent memory, security, planning plugin",
   "hooks": {
-    "PreToolUse": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts PreToolUse" }],
-    "PostToolUse": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts PostToolUse" }],
-    "Stop": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts Stop" }],
-    "Notification": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts Notification" }],
-    "PreCompact": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts PreCompact" }],
-    "SessionEnd": [{ "matcher": "*", "command": "bun run src/hooks/cli.ts SessionEnd" }]
+    "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "bun run \"${CLAUDE_PLUGIN_ROOT}/src/hooks/cli.ts\" PreToolUse" }] }],
+    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "..." }] }],
+    "PostToolUseFailure": [{ "hooks": [{ "type": "command", "command": "..." }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "..." }] }],
+    "Notification": [{ "hooks": [{ "type": "command", "command": "..." }] }],
+    "PreCompact": [{ "hooks": [{ "type": "command", "command": "..." }] }],
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "..." }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "..." }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "..." }] }]
   }
 }
 ```
+
+Note: PreToolUse and PostToolUse use `matcher: "*"`. Other events don't support matchers per spec.
 
 ### 8.2 CLI Dispatcher
 
@@ -372,25 +418,44 @@ All context content passes through:
 
 1. Read hook type from argv[2]
 2. Read JSON payload from stdin
-3. Validate payload shape (`validatePreToolInput` / `validatePostToolInput`)
-4. Dispatch to appropriate handler
-5. Write JSON response to stdout
+3. Validate payload (all 9 types have dedicated validators)
+4. Normalize snake_case → camelCase (`session_id` → `sessionId`, `tool_name` → `tool`)
+5. Dispatch to appropriate handler
+6. Write JSON response to stdout
 
+Accepts both official spec fields (`tool_name`, `tool_input`, `session_id`) and legacy fields (`tool`, `params`, `sessionId`).
 Invalid payloads → stderr message + exit code 2.
 
-### 8.3 PreToolUse Output Format
+### 8.3 Output Formats per Event
 
+**PreToolUse** — `hookSpecificOutput` with permission decision:
 ```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "allow",
-    "permissionDecisionReason": ""
-  }
-}
+{ "hookSpecificOutput": { "hookEventName": "PreToolUse", "permissionDecision": "allow|deny|ask", "permissionDecisionReason": "" } }
+```
+Decision mapping: block→"deny", confirm→"ask", allow→"allow".
+
+**Kill switch** — halts Claude entirely:
+```json
+{ "continue": false, "stopReason": "Kodo kill switch: anomalous behavior detected" }
 ```
 
-Decision mapping: block→"deny", confirm→"ask", allow→"allow".
+**PostToolUse** — top-level decision for blocking, hookSpecificOutput for context:
+```json
+// Blocking (injection score >= 4):
+{ "decision": "block", "reason": "Injection detected in tool output (score: 5)" }
+// Warning (injection score 1-3):
+{ "hookSpecificOutput": { "hookEventName": "PostToolUse", "additionalContext": "Warning: ..." } }
+```
+
+**SessionStart** — injects memory context:
+```json
+{ "hookSpecificOutput": { "hookEventName": "SessionStart", "additionalContext": "User profile: stack: TypeScript. Memory: 42 episodic cells available" } }
+```
+
+**UserPromptSubmit** — blocks injected prompts:
+```json
+{ "decision": "block", "reason": "Prompt blocked: injection detected (score: 5)" }
+```
 
 ## 9. RAG Design
 
@@ -412,16 +477,18 @@ Circuit breaker wraps strategy execution:
 - TTL: 7 days
 - Fuzzy matching: BM25 search with threshold 0.5
 - IDs: SHA-256 hash of `"${mode}:${query}"`, truncated to 16 hex chars
-- Storage: Single JSON file in `rag-cache/` directory
+- Storage: Single JSON file in `rag-cache/` directory, atomic write-then-rename
 
 ## 10. Testing Strategy
 
 ### 10.1 Coverage
 
-- 46 source files → 42 test files
-- 266 tests, 603 assertions
+- 51 source files → 47 test files
+- 338 tests, 742 assertions
 - Every security module has mandatory tests
 - Integration test covers full PreToolUse → PostToolUse pipeline
+- All hook payload validators tested with invalid input
+- Type guards tested (loadMemCells skips invalid JSON)
 
 ### 10.2 Conventions
 
@@ -429,22 +496,27 @@ Circuit breaker wraps strategy execution:
 - One test file per source module
 - Temp dirs via `mkdtemp()` with module-specific prefix
 - Cleanup with `rm(dir, { recursive: true, force: true })`
-- Always `await` async operations in tests
+- Always `await` async operations in tests (no fire-and-forget)
 - No mocking of core security functions (test real behavior)
+- Validate JSON from disk with type guards before use
 
 ## 11. Future Work
 
 Identified but not yet implemented:
 
-| Priority | Feature | Description |
-|----------|---------|-------------|
-| P0 | MCP Server | Expose security kernel as reusable MCP server (stdio transport, 6 read-only tools) |
-| P1 | Hybrid retrieval | Connect vector similarity signal to existing RRF infrastructure |
-| P1 | Observer/Reflector | Memory consolidation patterns for long sessions |
-| P2 | Importance-weighted decay | Time-based memory relevance scoring |
-| P2 | GoalGuard | Goal-constraint enforcement layer |
-| P3 | EU AI Act report | Auto-generate compliance reports from audit logs |
-| P3 | Memory isolation | Per-user/per-project memory partitioning |
+| Priority | Feature | Description | Status |
+|----------|---------|-------------|--------|
+| P0 | MCP Server | Expose security kernel as reusable MCP server (stdio transport, 6 read-only tools) | Not started |
+| P1 | Dense embedding retrieval | Add vector similarity signal to RRF (hybrid BM25+dense) | Not started |
+| P1 | Cross-encoder reranker | Rerank RRF results with cross-encoder (+28% NDCG@10) | Not started |
+| P1 | Observer/Reflector | Memory consolidation patterns for long sessions | Not started |
+| P2 | Query-adaptive RRF | Dynamic sparse/dense weighting based on query specificity | Not started |
+| ~~P2~~ | ~~Importance-weighted decay~~ | ~~Time-based memory relevance scoring~~ | **Done** (Wave 3) |
+| P2 | GoalGuard | Goal-constraint enforcement layer | Not started |
+| P2 | ASI07 message auth | HMAC-signed inter-agent messages with anti-replay | Not started |
+| P3 | Knowledge graph memory | Graphiti/Zep-style temporal KG for multi-hop reasoning | Not started |
+| P3 | EU AI Act report | Auto-generate compliance reports from audit logs | Not started |
+| P3 | Memory isolation | Per-user/per-project memory partitioning | Not started |
 
 ## 12. Decision Log
 
@@ -460,3 +532,15 @@ Identified but not yet implemented:
 | 2026-03-04 | Porter stemmer (simplified) | Full Porter has 60+ rules; 14 suffice for recall improvement |
 | 2026-03-04 | hookSpecificOutput format | Conform to Claude Code plugin spec for PreToolUse responses |
 | 2026-03-04 | Memory write injection scanning | Prevent poisoning via external content persisted to memory |
+| 2026-03-04 | Official nested hook format | Conform to Claude Code plugin spec with `type`/`command`/`${CLAUDE_PLUGIN_ROOT}` |
+| 2026-03-04 | 9 hook types (up from 6) | Added SessionStart (context loading), UserPromptSubmit (prompt scanning), PostToolUseFailure (failure audit) |
+| 2026-03-04 | Output guard module (ASI05) | Scan LLM output for XSS, eval, SQL injection, destructive commands |
+| 2026-03-04 | Prompt leakage defense (LLM07) | 10 extraction markers + anti-leakage armor in system prompt |
+| 2026-03-04 | FadeMem-inspired memory decay | Ebbinghaus retention `e^(-(t/S)^β)` with importance weighting |
+| 2026-03-04 | PostToolUse top-level decision | Official spec uses `decision: "block"`, not hookSpecificOutput |
+| 2026-03-04 | Kill switch via `continue: false` | Halts Claude entirely instead of just denying one tool call |
+| 2026-03-04 | Type guard validation for MemCells | Reject invalid JSON from disk instead of trusting `as` casts |
+| 2026-03-04 | Stemmer `-ation` before `-tion` | More specific suffix rules must precede general ones |
+| 2026-03-04 | Baseline event pruning | Prevent unbounded memory growth by pruning stale events |
+| 2026-03-04 | All 9 hook payloads validated | CLAUDE.md rule: "ALWAYS validate hook payloads before processing" |
+| 2026-03-04 | YAML loader validates autonomy | Reject invalid autonomy values and built-in slug conflicts |
