@@ -34,10 +34,17 @@ describe("parseCommand", () => {
 		expect(result?.command).toBe("rag");
 	});
 
+	test("parses agent command", () => {
+		const result = parseCommand("/kodo agent");
+		expect(result).not.toBeNull();
+		expect(result?.command).toBe("agent");
+	});
+
 	test("parses all recognized commands", () => {
 		const cmds = [
 			"status",
 			"plan",
+			"agent",
 			"audit",
 			"memory",
 			"cost",

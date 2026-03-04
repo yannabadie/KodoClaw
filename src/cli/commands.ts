@@ -7,6 +7,7 @@ export interface KodoCommand {
 const VALID_COMMANDS = new Set([
 	"status",
 	"plan",
+	"agent",
 	"audit",
 	"memory",
 	"cost",
