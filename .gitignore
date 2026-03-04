@@ -1,6 +1,8 @@
 node_modules/
 dist/
 *.tsbuildinfo
+.env
+.env.*
 ## Runtime data directories (created at plugin root, not in src/)
 /audit/
 /memory/
