@@ -105,6 +105,22 @@ describe("CostTracker", () => {
 		expect(config.isOverBudget).toBe(legacy.isOverBudget);
 	});
 
+	test("accepts custom pricing rates", () => {
+		const tracker = new CostTracker({
+			budgetUsd: 50,
+			inputCostPerM: 15,
+			outputCostPerM: 75,
+		});
+		tracker.record({ inputTokens: 1_000_000, outputTokens: 0 });
+		expect(tracker.snapshot.estimatedCostUsd).toBe(15);
+	});
+
+	test("defaults to Sonnet pricing when no config provided", () => {
+		const tracker = new CostTracker();
+		tracker.record({ inputTokens: 1_000_000, outputTokens: 0 });
+		expect(tracker.snapshot.estimatedCostUsd).toBe(3);
+	});
+
 	test("accumulates across multiple records", () => {
 		const tracker = new CostTracker();
 		tracker.record({ inputTokens: 100, outputTokens: 50 });
