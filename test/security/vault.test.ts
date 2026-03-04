@@ -103,6 +103,15 @@ describe("Vault", () => {
 		expect(result).toBe("value123");
 	});
 
+	test("vault.enc file has owner-only permissions", async () => {
+		await vault.set("perm_test", "value");
+		const vaultPath = join(dir, "vault.enc");
+		const st = await stat(vaultPath);
+		if (process.platform !== "win32") {
+			expect(st.mode & 0o777).toBe(0o600);
+		}
+	});
+
 	test("atomic write does not corrupt vault on concurrent access", async () => {
 		// Write multiple secrets sequentially and verify all survive
 		await vault.set("key_a", "alpha");

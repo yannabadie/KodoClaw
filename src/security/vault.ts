@@ -106,7 +106,7 @@ export class Vault {
 	private async saveStore(data: Record<string, string>): Promise<void> {
 		const path = join(this.dir, VAULT_FILE);
 		const tmp = `${path}.tmp`;
-		await writeFile(tmp, JSON.stringify(data), "utf-8");
+		await writeFile(tmp, JSON.stringify(data), { encoding: "utf-8", mode: 0o600 });
 		await rename(tmp, path);
 	}
 }
