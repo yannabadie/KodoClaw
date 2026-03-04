@@ -10,7 +10,7 @@ import { handlePreCompact } from "./precompact";
 import { handleSessionEnd } from "./session-end";
 import { handleSessionStart } from "./session-start";
 import { handleStop } from "./stop";
-import { handleUserPromptSubmit } from "./user-prompt-submit";
+import { handleUserPromptSubmit, persistLastPrompt } from "./user-prompt-submit";
 
 type HookType =
 	| "PreToolUse"
@@ -162,17 +162,24 @@ async function main(): Promise<void> {
 			if (preResult.decision === "block" && preResult.reason?.includes("kill switch")) {
 				result = { continue: false, stopReason: preResult.reason };
 			} else {
+				const hookOutput: Record<string, unknown> = {
+					hookEventName: "PreToolUse",
+					permissionDecision:
+						preResult.decision === "block"
+							? "deny"
+							: preResult.decision === "confirm"
+								? "ask"
+								: "allow",
+					permissionDecisionReason: preResult.reason ?? "",
+				};
+				// Support updatedInput for tool parameter modification (Claude Code spec)
+				if (preResult.updatedInput) {
+					hookOutput.updatedInput = preResult.updatedInput;
+				}
 				result = {
-					hookSpecificOutput: {
-						hookEventName: "PreToolUse",
-						permissionDecision:
-							preResult.decision === "block"
-								? "deny"
-								: preResult.decision === "confirm"
-									? "ask"
-									: "allow",
-						permissionDecisionReason: preResult.reason ?? "",
-					},
+					hookSpecificOutput: hookOutput,
+					// Support systemMessage for explaining decisions to Claude
+					...(preResult.systemMessage ? { systemMessage: preResult.systemMessage } : {}),
 				};
 			}
 			break;
@@ -185,17 +192,28 @@ async function main(): Promise<void> {
 			{
 				const postResult = handlePostToolUse(payload);
 				// Use official PostToolUse format: top-level decision + hookSpecificOutput for context
+				const outputThreatsMsg =
+					postResult.outputThreats.length > 0
+						? ` Output threats: ${postResult.outputThreats.join(", ")}.`
+						: "";
+
 				if (postResult.injectionScore >= 4) {
 					result = {
 						decision: "block",
 						reason: `Injection detected in tool output (score: ${postResult.injectionScore})`,
+						...(outputThreatsMsg
+							? { systemMessage: `Security scan blocked output.${outputThreatsMsg}` }
+							: {}),
 					};
-				} else if (postResult.injectionScore >= 1) {
+				} else if (postResult.injectionScore >= 1 || postResult.outputThreats.length > 0) {
 					result = {
 						hookSpecificOutput: {
 							hookEventName: "PostToolUse",
-							additionalContext: `Warning: potential injection in output (score: ${postResult.injectionScore})`,
+							additionalContext: `Warning: potential injection in output (score: ${postResult.injectionScore}).${outputThreatsMsg}`,
 						},
+						...(outputThreatsMsg
+							? { systemMessage: `Output guard flagged threats.${outputThreatsMsg}` }
+							: {}),
 					};
 				} else {
 					result = {};
@@ -261,8 +279,15 @@ async function main(): Promise<void> {
 		}
 		case "UserPromptSubmit": {
 			const promptInput = payload as Record<string, unknown>;
+			const prompt = (promptInput.prompt ?? "") as string;
+			// Persist prompt for task-driven recall (before injection check)
+			try {
+				await persistLastPrompt(prompt, baseDir);
+			} catch {
+				// Non-critical — don't block on persistence failure
+			}
 			result = handleUserPromptSubmit({
-				prompt: (promptInput.prompt ?? "") as string,
+				prompt,
 				sessionId: (promptInput.session_id ?? "") as string,
 			});
 			break;

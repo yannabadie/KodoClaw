@@ -210,6 +210,32 @@ describe("handleSessionStart", () => {
 		expect(result.additionalContext).toMatch(/\[\d+\.\d{2}\]/);
 	});
 
+	test("uses last prompt for memory recall when available", async () => {
+		const memDir = join(dir, "memory");
+		const cellsDir = join(memDir, "cells");
+		await mkdir(cellsDir, { recursive: true });
+
+		// Persist a specific prompt
+		await writeFile(join(memDir, "last-prompt.txt"), "How does the auth module work?", "utf-8");
+
+		// Create a cell that matches "auth"
+		const cell = {
+			id: "mc_auth_001",
+			episode: "Refactored auth module with JWT tokens",
+			facts: ["switched from session cookies to JWT", "added refresh token rotation"],
+			tags: ["auth", "security"],
+			timestamp: new Date().toISOString(),
+			importance: 1.0,
+			checksum: "",
+		};
+		cell.checksum = computeChecksum(cell);
+		await writeFile(join(cellsDir, "mc_auth_001.json"), JSON.stringify(cell), "utf-8");
+
+		const result = await handleSessionStart({ sessionId: "s1", source: "resume" }, dir);
+		expect(result.additionalContext).toContain("Memory Context:");
+		expect(result.additionalContext).toContain("auth");
+	});
+
 	test("includes RAG status in context", async () => {
 		const result = await handleSessionStart({ sessionId: "s1", source: "startup" }, dir);
 		// Should mention RAG in some form

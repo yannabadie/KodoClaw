@@ -36,9 +36,22 @@ export async function handleSessionStart(
 
 	// Recall ranked memory context via BM25 + decay pipeline
 	const cellsDir = join(baseDir, "memory", "cells");
+
+	// Determine recall query: use last prompt if available, fallback to generic
+	let recallQuery = "recent project context";
+	try {
+		const lastPromptPath = join(baseDir, "memory", "last-prompt.txt");
+		const lastPrompt = await readFile(lastPromptPath, "utf-8");
+		if (lastPrompt.trim()) {
+			recallQuery = lastPrompt.trim();
+		}
+	} catch {
+		// No last-prompt.txt — use default query
+	}
+
 	let memoryContext = "";
 	try {
-		memoryContext = await buildMemoryContext(cellsDir, "recent project context");
+		memoryContext = await buildMemoryContext(cellsDir, recallQuery);
 	} catch {
 		// buildMemoryContext failed — fall through to count fallback
 	}
