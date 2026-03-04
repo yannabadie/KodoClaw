@@ -77,6 +77,34 @@ describe("CostTracker", () => {
 		expect(tracker.snapshot.budgetExceeded).toBe(true);
 	});
 
+	test("accepts CostConfig object with custom rates", () => {
+		const tracker = new CostTracker({
+			inputCostPerM: 15,
+			outputCostPerM: 75,
+			budgetUsd: 50,
+		});
+		// 1M input tokens @ $15/M = $15.00
+		tracker.record({ inputTokens: 1_000_000, outputTokens: 0 });
+		expect(tracker.snapshot.estimatedCostUsd).toBe(15);
+		expect(tracker.snapshot.budgetRemainingUsd).toBe(35);
+
+		// 1M output tokens @ $75/M = $75.00 → total $90 → exceeds $50 budget
+		tracker.record({ inputTokens: 0, outputTokens: 1_000_000 });
+		expect(tracker.isOverBudget).toBe(true);
+		expect(tracker.snapshot.estimatedCostUsd).toBe(90);
+	});
+
+	test("CostConfig defaults match legacy behavior", () => {
+		const legacy = new CostTracker(10);
+		const config = new CostTracker({ budgetUsd: 10 });
+
+		legacy.record({ inputTokens: 1_000_000, outputTokens: 100_000 });
+		config.record({ inputTokens: 1_000_000, outputTokens: 100_000 });
+
+		expect(config.snapshot.estimatedCostUsd).toBe(legacy.snapshot.estimatedCostUsd);
+		expect(config.isOverBudget).toBe(legacy.isOverBudget);
+	});
+
 	test("accumulates across multiple records", () => {
 		const tracker = new CostTracker();
 		tracker.record({ inputTokens: 100, outputTokens: 50 });
