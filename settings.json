@@ -1,7 +1,3 @@
 {
-  "agent": "code",
-  "permissions": {
-    "allow": ["read", "write", "edit", "glob", "grep"],
-    "deny": []
-  }
+  "agent": "code"
 }
