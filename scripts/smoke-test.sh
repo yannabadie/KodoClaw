@@ -28,7 +28,7 @@ check "Bun installed" bun --version
 check "Dependencies installed" test -d node_modules/@noble/ciphers
 
 # 3. Tests pass
-check "Tests pass (338)" bash -c "bun test 2>&1 | grep -q '338 pass'"
+check "Tests pass (500+)" bash -c "bun test 2>&1 | grep -qE '[5-9][0-9]{2} pass'"
 
 # 4. Lint clean
 check "Lint clean (0 errors)" bash -c "bun run check 2>&1 | grep -q 'No fixes applied'"
@@ -46,7 +46,7 @@ check "settings.json valid" bash -c "cat settings.json | bun -e 'JSON.parse(awai
 check "5 agents present" bash -c "test \$(ls agents/*.md 2>/dev/null | wc -l) -eq 5"
 
 # 9. All 11 commands present
-check "11 commands present" bash -c "test \$(ls commands/*.md 2>/dev/null | wc -l) -eq 11"
+check "13 commands present" bash -c "test \$(ls commands/*.md 2>/dev/null | wc -l) -eq 13"
 
 # 10. Both skills present
 check "2 skills present" bash -c "test -f skills/kodo-context/SKILL.md && test -f skills/security-check/SKILL.md"
