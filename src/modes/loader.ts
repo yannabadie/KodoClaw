@@ -4,6 +4,12 @@ import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type { AutonomyLevel } from "../security/policy";
 import { BaseMode } from "./base-mode";
+import { ArchitectMode } from "./built-in/architect";
+import { AskMode } from "./built-in/ask";
+import { CodeMode } from "./built-in/code";
+import { DebugMode } from "./built-in/debug";
+import { PlanMode } from "./built-in/plan";
+import { ReviewMode } from "./built-in/review";
 
 interface YamlModeConfig {
 	name: string;
@@ -41,6 +47,25 @@ class CustomMode extends BaseMode {
 const VALID_AUTONOMY: string[] = ["guarded", "supervised", "trusted", "autonomous"];
 const BUILTIN_SLUGS: string[] = ["code", "architect", "ask", "debug", "plan", "review"];
 
+function getBuiltInBySlug(slug: string): BaseMode | null {
+	switch (slug) {
+		case "code":
+			return new CodeMode();
+		case "architect":
+			return new ArchitectMode();
+		case "ask":
+			return new AskMode();
+		case "debug":
+			return new DebugMode();
+		case "plan":
+			return new PlanMode();
+		case "review":
+			return new ReviewMode();
+		default:
+			return null;
+	}
+}
+
 export async function loadCustomModes(dir: string): Promise<BaseMode[]> {
 	let files: string[];
 	try {
@@ -56,11 +81,23 @@ export async function loadCustomModes(dir: string): Promise<BaseMode[]> {
 			const raw = await readFile(join(dir, f), "utf-8");
 			const config: YamlModeConfig = parseYaml(raw);
 			if (config.autonomy && !VALID_AUTONOMY.includes(config.autonomy)) {
-				continue; // Skip mode with invalid autonomy
+				continue;
 			}
 			if (config.slug && BUILTIN_SLUGS.includes(config.slug)) {
-				continue; // Skip mode that conflicts with built-in slug
+				continue;
 			}
+
+			// Apply extends inheritance: parent provides defaults, child overrides
+			if (config.extends) {
+				const parent = getBuiltInBySlug(config.extends);
+				if (!parent) continue;
+				if (!config.allowedTools) config.allowedTools = [...parent.allowedTools];
+				if (!config.autonomy) config.autonomy = parent.autonomyLevel;
+				if (!config.memory) config.memory = parent.memoryDepth;
+				if (config.planning === undefined) config.planning = parent.planningEnabled;
+				if (!config.notebook_id) config.notebook_id = parent.notebookId ?? undefined;
+			}
+
 			if (config.slug && config.instructions) {
 				modes.push(new CustomMode(config));
 			}

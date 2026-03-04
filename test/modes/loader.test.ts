@@ -90,6 +90,57 @@ instructions: Should not load
 		expect(modes.length).toBe(0);
 	});
 
+	test("extends inherits parent allowedTools when not specified", async () => {
+		await writeFile(
+			join(dir, "secure-review.yaml"),
+			`
+name: Secure Reviewer
+slug: secure-review
+extends: review
+instructions: Security-focused code review
+`,
+		);
+
+		const modes = await loadCustomModes(dir);
+		expect(modes.length).toBe(1);
+		expect(modes[0]?.allowedTools).toEqual(["read", "glob", "grep"]);
+		expect(modes[0]?.autonomyLevel).toBe("guarded");
+	});
+
+	test("extends allows child to override parent properties", async () => {
+		await writeFile(
+			join(dir, "power-code.yaml"),
+			`
+name: Power Coder
+slug: power-coder
+extends: code
+autonomy: supervised
+instructions: Careful coding with supervision
+`,
+		);
+
+		const modes = await loadCustomModes(dir);
+		expect(modes.length).toBe(1);
+		expect(modes[0]?.autonomyLevel).toBe("supervised");
+		expect(modes[0]?.allowedTools).toContain("bash");
+		expect(modes[0]?.allowedTools).toContain("agent");
+	});
+
+	test("extends with invalid parent slug is skipped", async () => {
+		await writeFile(
+			join(dir, "bad-extends.yaml"),
+			`
+name: Bad Extends
+slug: bad-extends
+extends: nonexistent
+instructions: Should not load
+`,
+		);
+
+		const modes = await loadCustomModes(dir);
+		expect(modes.length).toBe(0);
+	});
+
 	test("sets notebook binding", async () => {
 		await writeFile(
 			join(dir, "cyber.yaml"),
