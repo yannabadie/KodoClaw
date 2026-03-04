@@ -1,6 +1,7 @@
 // src/rag/connector.ts
 import { CircuitBreaker } from "../security/circuit-breaker";
 import type { RAGCache } from "./cache";
+import { type FileSearchConfig, queryFileSearch } from "./file-search";
 
 export interface RAGResponse {
 	answer: string;
@@ -21,7 +22,7 @@ export interface RAGStatus {
 /** Callback invoked when RAG status changes (e.g., auth expired -> fallback). */
 export type RAGStatusCallback = (status: RAGStatus) => void;
 
-export type ConnectorStrategy = "mcp" | "api" | "none";
+export type ConnectorStrategy = "mcp" | "api" | "file_search" | "none";
 
 /**
  * New dual-strategy configuration.
@@ -269,6 +270,8 @@ export class NotebookLMConnector {
 						return this.queryViaMCP(question, notebookId);
 					case "api":
 						return this.queryViaAPI(question, notebookId);
+					case "file_search":
+						return this.tryFileSearch(question);
 					default:
 						return null;
 				}
@@ -382,6 +385,27 @@ export class NotebookLMConnector {
 
 		const data: unknown = await response.json();
 		return parseGeminiResponse(data);
+	}
+
+	// ── File Search strategy ──────────────────────────────────────────
+
+	private async tryFileSearch(question: string): Promise<RAGResponse | null> {
+		const apiKey = this.config.geminiApiKey;
+		if (!apiKey) return null;
+
+		const storeId = this.config.geminiStores?.[this.currentMode];
+		if (!storeId) return null;
+
+		const fileSearchConfig: FileSearchConfig = {
+			apiKey,
+			storeNames: [storeId],
+		};
+
+		try {
+			return await queryFileSearch(question, fileSearchConfig);
+		} catch {
+			return null;
+		}
 	}
 
 	// ── Cache helper ───────────────────────────────────────────────────

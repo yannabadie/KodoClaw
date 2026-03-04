@@ -322,6 +322,83 @@ describe("NotebookLMConnector", () => {
 		});
 	});
 
+	// ── file_search strategy ─────────────────────────────────────────
+
+	describe("file_search strategy", () => {
+		test("primary 'file_search' → isAvailable true", () => {
+			const conn = new NotebookLMConnector({
+				primary: "file_search",
+				geminiApiKey: "test-key",
+				geminiStores: { code: "store-123" },
+			});
+			expect(conn.isAvailable()).toBe(true);
+		});
+
+		test("file_search accepted as fallback strategy", () => {
+			const conn = new NotebookLMConnector({
+				primary: "mcp",
+				fallback: "file_search",
+				geminiApiKey: "test-key",
+				geminiStores: { code: "store-123" },
+			});
+			expect(conn.isAvailable()).toBe(true);
+		});
+
+		test("file_search without apiKey returns null (no crash)", async () => {
+			const conn = new NotebookLMConnector({
+				primary: "file_search",
+				geminiStores: { code: "store-123" },
+			});
+			const result = await conn.query("question?", "nb1");
+			expect(result).toBeNull();
+		});
+
+		test("file_search without geminiStores returns null (no crash)", async () => {
+			const conn = new NotebookLMConnector({
+				primary: "file_search",
+				geminiApiKey: "test-key",
+			});
+			const result = await conn.query("question?", "nb1");
+			expect(result).toBeNull();
+		});
+
+		test("file_search falls back when primary fails", async () => {
+			// primary file_search with no stores → returns null → tries fallback "none" → null
+			const conn = new NotebookLMConnector({
+				primary: "file_search",
+				fallback: "none",
+				geminiApiKey: "test-key",
+			});
+			const result = await conn.query("question?", "nb1");
+			expect(result).toBeNull();
+		});
+
+		test("file_search config stored correctly with geminiStores", () => {
+			const config: ConnectorConfig = {
+				primary: "file_search",
+				geminiApiKey: "test-key",
+				geminiStores: {
+					code: "store-code-789",
+					architect: "store-arch-012",
+				},
+			};
+			const conn = new NotebookLMConnector(config);
+			expect(conn.isAvailable()).toBe(true);
+		});
+
+		test("file_search status defaults to ok", () => {
+			const conn = new NotebookLMConnector({
+				primary: "file_search",
+				geminiApiKey: "test-key",
+				geminiStores: { code: "store-123" },
+			});
+			const s = conn.status;
+			expect(s.level).toBe("ok");
+			expect(s.primaryState).toBe("ok");
+			expect(s.lastError).toBeNull();
+		});
+	});
+
 	// ── Auth expiry detection ─────────────────────────────────────────
 
 	describe("auth expiry detection", () => {
