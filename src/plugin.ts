@@ -19,6 +19,10 @@ export interface HookInput {
 export interface PreToolResult {
 	decision: PolicyDecision;
 	reason?: string;
+	/** Optional modified tool parameters (Claude Code spec: updatedInput). */
+	updatedInput?: Record<string, unknown>;
+	/** Optional explanation message for Claude (Claude Code spec: systemMessage). */
+	systemMessage?: string;
 }
 
 export interface PostToolResult {

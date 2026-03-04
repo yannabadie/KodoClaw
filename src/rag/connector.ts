@@ -364,7 +364,7 @@ export class NotebookLMConnector {
 			tools: [
 				{
 					file_search: {
-						store: storeId,
+						file_search_store_names: [storeId],
 					},
 				},
 			],

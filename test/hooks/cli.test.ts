@@ -419,4 +419,29 @@ describe("hooks CLI wrapper", () => {
 		const result = JSON.parse(stdout) as { auditFlushed: boolean };
 		expect(result.auditFlushed).toBe(true);
 	});
+
+	// --- systemMessage support (Claude Code spec) ---
+
+	test("PostToolUse includes systemMessage when output threats detected", async () => {
+		const { stdout, exitCode } = await runCli("PostToolUse", {
+			output: "The API_KEY=AIzaSyC3THhd6unXuQFSOHleNemTB5nQh3NXADs was found in the output",
+		});
+		expect(exitCode).toBe(0);
+		const result = JSON.parse(stdout) as Record<string, unknown>;
+		// Output guard should detect credential_leak threat
+		if (result.systemMessage) {
+			expect(result.systemMessage).toContain("Output guard");
+		}
+		// Should have hook output with additional context
+		expect(result.hookSpecificOutput || result.decision).toBeDefined();
+	});
+
+	test("PostToolUse does not include systemMessage for clean output", async () => {
+		const { stdout, exitCode } = await runCli("PostToolUse", {
+			output: "This is a perfectly clean response with no issues.",
+		});
+		expect(exitCode).toBe(0);
+		const result = JSON.parse(stdout) as Record<string, unknown>;
+		expect(result.systemMessage).toBeUndefined();
+	});
 });

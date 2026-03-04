@@ -15,6 +15,17 @@ const DANGEROUS_OUTPUT_PATTERNS: { pattern: RegExp; threat: string }[] = [
 	{ pattern: /;\s*DELETE\s+FROM/i, threat: "sql_delete" },
 	{ pattern: /UNION\s+SELECT/i, threat: "sql_union" },
 	{ pattern: /rm\s+-rf\s+\//, threat: "destructive_rm" },
+	// System prompt / instruction leakage (OWASP LLM07)
+	{ pattern: /SYSTEM\s*:\s*[Yy]ou\s+are/i, threat: "system_prompt_leak" },
+	{ pattern: /[Ss]ystem\s+prompt\s*:/i, threat: "system_prompt_leak" },
+	{ pattern: /(?:Instructions|Rules)\s*:\s*\n\s*\d+\./i, threat: "instruction_leak" },
+	// API key / credential exposure
+	{ pattern: /API_?KEY\s*[:=]\s*["']?[A-Za-z0-9_\-]{10,}/i, threat: "credential_leak" },
+	{ pattern: /Bearer\s+ey[A-Za-z0-9_.\-]{50,}/i, threat: "jwt_token_leak" },
+	{
+		pattern: /(?:password|secret|token)\s*[:=]\s*["']?[^\s"']{8,}/i,
+		threat: "credential_leak",
+	},
 ];
 
 export interface OutputGuardResult {
