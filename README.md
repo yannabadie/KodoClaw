@@ -3,7 +3,7 @@
 Intelligent Claude Code plugin with memory, planning, security, and RAG.
 
 ```
-98 files  |  7,473 LOC  |  338 tests  |  2 deps  |  5 agents  |  Bun + TypeScript
+100 files  |  7,900 LOC  |  381 tests  |  2 deps  |  5 agents  |  Bun + TypeScript
 ```
 
 ## What is Kodo?
@@ -376,7 +376,7 @@ Localhost-only SPA on port 3700 with HMAC-SHA256 pairing authentication.
 ## Development
 
 ```bash
-# Run tests (338 tests, 742 assertions)
+# Run tests (381 tests, 808 assertions)
 bun test
 
 # Lint & format check (zero errors required)
@@ -394,7 +394,7 @@ bun run build
 ```
 kodo/
 ├── .claude-plugin/
-│   └── plugin.json               — plugin manifest (v0.3.0)
+│   └── plugin.json               — plugin manifest (v0.4.0)
 ├── agents/                        — 5 agent definitions
 │   ├── code.md                    — default coding agent (trusted)
 │   ├── architect.md               — system design (supervised, read-only)
@@ -421,7 +421,7 @@ kodo/
 │   ├── cli/            3 modules — CLI commands
 │   ├── index.ts                  — plugin init
 │   └── plugin.ts                 — pre/post tool handlers
-├── test/              47 test files mirroring src/
+├── test/              48 test files mirroring src/
 ├── docs/plans/                   — design documents
 ├── settings.json                 — default agent + permissions
 ├── CLAUDE.md                     — AI instructions

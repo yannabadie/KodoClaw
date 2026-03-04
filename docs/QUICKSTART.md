@@ -92,7 +92,7 @@ Shows:
 - **MemScenes**: Clustered groups of related memories
 - **Profile**: Your stable traits (tech stack, coding style) and temporary states
 
-Memories decay over time using an importance-weighted curve. Important memories persist longer (up to ~14 days), less important ones fade faster (~3.5 days).
+Memories decay over time using an importance-weighted curve. Important memories persist longer (up to ~14 days), less important ones fade faster (~3.5 days). Memories with `importance: Infinity` never decay and are permanently retained.
 
 ## 6. Monitor Costs
 

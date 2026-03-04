@@ -1,12 +1,12 @@
 # Architecture
 
-Kodo is organized in 3 layers with 51 TypeScript source modules, 2 runtime dependencies, and 9 hooks.
+Kodo is organized in 3 layers with 52 TypeScript source modules, 2 runtime dependencies, and 9 hooks.
 
 ## Layer Model
 
 ```
 Layer 0: Plugin Surface
-  .claude-plugin/plugin.json    Plugin manifest (v0.3.0)
+  .claude-plugin/plugin.json    Plugin manifest (v0.4.0)
   hooks/hooks.json              9 hook registrations
   agents/                       5 agent definitions (code, architect, debug, review, security-audit)
   commands/                     11 slash commands (/kodo:status, /kodo:plan, ...)
@@ -121,7 +121,7 @@ Final system prompt
 | `rate-limiter.ts` | `RateLimiter` class | Sliding window rate limiter for tool calls |
 | `integrity.ts` | `verifyManifest()` | SHA-256 manifest for skill file verification |
 
-### `src/memory/` — Memory Engine (7 modules)
+### `src/memory/` — Memory Engine (8 modules)
 
 | Module | Exports | Description |
 |--------|---------|-------------|
@@ -131,7 +131,8 @@ Final system prompt
 | `recall.ts` | `recall()`, `applyDecayToScores()` | Cosine similarity, RRF (k=60), TF-IDF. Decay-weighted BM25 scoring |
 | `bm25.ts` | `BM25Index` class | Full-text search (k1=1.5, b=0.75). Serializable. Integrates stemmer + stop words |
 | `stemmer.ts` | `stem()`, `isStopWord()` | Simplified Porter stemmer (14 rules, `-ation` before `-tion`) + 88 English stop words |
-| `decay.ts` | `computeRetention()`, `applyDecay()`, `pruneDecayed()` | FadeMem-inspired: `retention(t) = e^(-(t/S)^0.8)` where S = importance x 7 days. Prune below 10% |
+| `decay.ts` | `computeRetention()`, `applyDecay()`, `pruneDecayed()` | FadeMem-inspired: `retention(t) = e^(-(t/S)^0.8)` where S = importance x 7 days. Prune below 10%. `importance: Infinity` yields retention 1.0 (never decays) |
+| `builder.ts` | `buildMemoryContext()` | Memory recall pipeline. Loads cells, builds BM25 index, applies decay-weighted scoring, returns formatted markdown. Wired into SessionStart hook |
 
 ### `src/modes/` — Mode Engine (9 modules)
 
@@ -167,7 +168,7 @@ Final system prompt
 
 | Module | Exports | Description |
 |--------|---------|-------------|
-| `connector.ts` | `RagConnector` class | Multi-strategy connector (MCP → Python → API). Circuit breaker on failures |
+| `connector.ts` | `RagConnector` class | Dual-strategy connector: NotebookLM MCP (primary) + Gemini File Search (fallback). Per-mode notebook binding. Dual circuit breakers |
 | `cache.ts` | `RagCache` class | 7-day TTL cache. BM25 fuzzy matching (threshold 0.5). SHA-256 IDs. Atomic write-then-rename |
 
 ### `src/hooks/` — Hook Handlers (8 modules)
@@ -175,7 +176,7 @@ Final system prompt
 | Module | Description |
 |--------|-------------|
 | `cli.ts` | Main dispatcher for 9 hook types. Validates payloads. Normalizes snake_case → camelCase. Routes to handler |
-| `session-start.ts` | Loads profile traits + counts memory cells. Returns additionalContext |
+| `session-start.ts` | Loads profile traits + runs buildMemoryContext() recall pipeline. Falls back to cell count if no matches. Returns additionalContext |
 | `user-prompt-submit.ts` | Scans user prompts with injection scanner. Blocks at score >= 4. Warns at >= 1 |
 | `post-tool-failure.ts` | Logs tool failures to daily `{date}-failures.jsonl` |
 | `stop.ts` | Audit summary with tool count + session duration |
@@ -188,7 +189,7 @@ Final system prompt
 | Module | Description |
 |--------|-------------|
 | `server.ts` | Bun HTTP server bound to 127.0.0.1 only. HMAC auth on `/api/*` routes |
-| `auth.ts` | HMAC-SHA256 pairing + session tokens. Timing-safe comparison with hex validation |
+| `auth.ts` | HMAC-SHA256 pairing + session tokens. Timing-safe comparison with hex validation. TTL enforcement (default 24h) |
 | `routes.ts` | REST endpoints: `/api/status`, `/api/cost`, `/api/memory`, `/api/plan`, `/api/audit` |
 
 ### `src/cli/` — CLI Commands (3 modules)

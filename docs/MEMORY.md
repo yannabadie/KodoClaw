@@ -101,12 +101,23 @@ Where:
 | 1.0 (default) | 7 days | ~4.8 days | Standard facts and decisions |
 | 1.5 | 10.5 days | ~7.2 days | Important architectural decisions |
 | 2.0 | 14 days | ~9.7 days | Critical choices, user preferences |
+| Infinity | Infinite | Never decays | Permanent architectural decisions, immutable agreements |
 
 ### Pruning
 
 Cells with retention below **10%** are permanently removed by `pruneDecayed()`.
 
 For a cell with importance=1.0, this occurs at approximately **16 days** after creation.
+
+### Permanent Memories
+
+Setting `importance: Infinity` on a MemCell makes it immune to decay. The retention function always returns 1.0, and `pruneDecayed()` never removes it. Use this for:
+
+- Architectural decisions that must never be forgotten
+- Immutable agreements or constraints
+- Project invariants (e.g., "never bind to 0.0.0.0", "max 2 runtime deps")
+
+Permanent memories still participate in BM25 search and RRF ranking normally -- they simply never lose relevance due to age.
 
 ### Integration with Recall
 
@@ -174,6 +185,8 @@ Rule order matters: `-ation` must precede `-tion` to correctly stem "automation"
 `src/memory/stemmer.ts` — `stem()`, `isStopWord()`
 
 ## Recall Pipeline
+
+The recall pipeline is orchestrated by `buildMemoryContext()` in `src/memory/builder.ts`, which is called from the SessionStart hook. It loads all MemCells, builds a BM25 index, applies decay-weighted scoring, and returns formatted markdown context for Claude's system prompt.
 
 When Claude needs to remember something, the recall pipeline fuses two search strategies:
 

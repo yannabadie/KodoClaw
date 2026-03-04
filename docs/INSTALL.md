@@ -53,13 +53,13 @@ bun test
 **Expected output:**
 
 ```
- 338 pass
+ 381 pass
  0 fail
- 742 expect() calls
-Ran 338 tests across 47 files.
+ 808 expect() calls
+Ran 381 tests across 49 files.
 ```
 
-All 338 tests must pass. If any fail, see [Troubleshooting](TROUBLESHOOTING.md#tests-failing-after-clean-install).
+All 381 tests must pass. If any fail, see [Troubleshooting](TROUBLESHOOTING.md#tests-failing-after-clean-install).
 
 ## Step 4: Lint Check
 
@@ -70,7 +70,7 @@ bun run check
 **Expected output:**
 
 ```
-Checked 98 files in XXms. No fixes applied.
+Checked 100 files in XXms. No fixes applied.
 ```
 
 Zero errors required. If errors appear, run `bun run check:fix` to auto-fix.
@@ -220,7 +220,7 @@ Kodo Smoke Test
 
   PASS  Bun installed
   PASS  Dependencies installed
-  PASS  Tests pass (338)
+  PASS  Tests pass (381)
   PASS  Lint clean (0 errors)
   PASS  hooks.json valid
   PASS  plugin.json name=kodo

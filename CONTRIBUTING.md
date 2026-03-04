@@ -13,7 +13,7 @@ Thank you for considering contributing to Kodo! This guide covers everything you
 git clone https://github.com/yannabadie/KodoClaw.git
 cd KodoClaw/kodo
 bun install
-bun test       # 338 tests, 742 assertions, 0 failures
+bun test       # 381 tests, 808 assertions, 0 failures
 bun run check  # 0 lint errors
 ```
 
@@ -106,17 +106,17 @@ describe("ModuleName", () => {
 ### Running Tests
 
 ```bash
-bun test                           # Run all 338 tests
+bun test                           # Run all 381 tests
 bun test test/security/vault.test.ts  # Run specific test file
 ```
 
 Expected output:
 
 ```
- 338 pass
+ 381 pass
  0 fail
- 742 expect() calls
-Ran 338 tests across 47 files.
+ 808 expect() calls
+Ran 381 tests across 48 files.
 ```
 
 ## Commit Workflow
@@ -200,7 +200,7 @@ See [Architecture](docs/ARCHITECTURE.md) for detailed module descriptions.
 
 Before submitting a PR, verify:
 
-- [ ] `bun test` — 338+ tests pass, 0 failures
+- [ ] `bun test` — 381+ tests pass, 0 failures
 - [ ] `bun run check` — 0 lint/format errors
 - [ ] New source files have corresponding test files in `test/`
 - [ ] No `any` types added

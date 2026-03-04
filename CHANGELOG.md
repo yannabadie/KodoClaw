@@ -2,6 +2,32 @@
 
 All notable changes to Kodo are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] - 2026-03-04
+
+### Added
+- `src/memory/builder.ts` — Memory recall pipeline. `buildMemoryContext()` loads MemCells, builds BM25 index, applies decay-weighted scoring, returns formatted markdown
+- Dual-strategy RAG connector: NotebookLM MCP (primary) + Gemini File Search (fallback) with dual circuit breakers
+- Per-mode notebook binding: each custom YAML mode can reference a NotebookLM notebook via `notebook_id`
+- `enrich()` and `deepResearch()` methods on RAG connector for agent self-improvement
+- Session token TTL enforcement in `auth.ts` (default 24h, configurable `ttlMs`)
+- Configurable `CostConfig` interface with `inputCostPerM`, `outputCostPerM`, `budgetUsd`
+- `importance: Infinity` support in decay system — permanent memories that never decay
+
+### Changed
+- SessionStart hook now runs `buildMemoryContext()` recall pipeline instead of just counting cells
+- Mode `extends` inheritance fully implemented: child YAML modes inherit parent's `allowedTools`, `autonomy`, `memory`, `planning`, `notebookId`
+- Vault encryption: `vault.enc` now written with mode 0o600 (previously only `.vault_key` had restricted permissions)
+- RAG connector rewritten with `ConnectorConfig` interface, backward-compatible with legacy `{ strategy: "none" }`
+- Memory engine: 7 → 8 modules (added `builder.ts`)
+- 100 TypeScript files (52 src + 48 test), up from 98
+- 381 tests, 808 expect() calls, up from 338 tests, 742 calls
+- Version unified across `package.json`, `src/index.ts`, `.claude-plugin/plugin.json`
+
+### Fixed
+- Mode `extends` was declared but ignored by loader — now fully functional
+- Vault.enc file had no permission restriction — now 0o600
+- Session tokens had no expiry — now enforce TTL
+
 ## [0.3.0] - 2026-03-04
 
 ### Added

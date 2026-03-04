@@ -209,7 +209,7 @@ Write JSON to stdout
 
 **Handler:** `src/hooks/cli.ts` → `src/hooks/session-start.ts`
 
-**Action:** Loads user profile traits and counts available memory cells. Returns context to inject into Claude's system prompt.
+**Action:** Loads user profile traits and runs buildMemoryContext() recall pipeline (BM25 + decay weighting). Falls back to cell count if no matches. Returns context to inject into Claude's system prompt.
 
 **Stdin (input):**
 
@@ -225,7 +225,7 @@ Write JSON to stdout
 {
   "hookSpecificOutput": {
     "hookEventName": "SessionStart",
-    "additionalContext": "User profile: stack: TypeScript, Bun. Style: TDD, small commits. Memory: 42 episodic cells available, 8 scenes consolidated."
+    "additionalContext": "User profile: stack: TypeScript, Bun. Style: TDD, small commits.\n\nMemory Context (top 5 by relevance):\n1. [0.92] Decided to use XChaCha20-Poly1305 for vault encryption\n2. [0.85] Added BM25 full-text search with Porter stemmer\n3. [0.78] Circuit breaker pattern for RAG connector\n4. [0.71] Injection scanner uses Aho-Corasick with 44 markers\n5. [0.65] Memory decay follows FadeMem Ebbinghaus curve"
   }
 }
 ```

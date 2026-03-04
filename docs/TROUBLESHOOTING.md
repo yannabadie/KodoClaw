@@ -193,7 +193,7 @@ ls -la memory/vault.key
    bun test
    ```
 
-**Expected:** 338 pass, 0 fail, 742 expect() calls.
+**Expected:** 381 pass, 0 fail, 808 expect() calls.
 
 **Verify:** All tests pass with zero failures.
 
@@ -217,7 +217,7 @@ ls -la memory/vault.key
 **Verify:**
 ```bash
 bun run check
-# Expected: Checked 98 files in XXms. No fixes applied.
+# Expected: Checked 100 files in XXms. No fixes applied.
 ```
 
 ---
